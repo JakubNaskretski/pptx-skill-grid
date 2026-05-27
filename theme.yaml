@@ -1,0 +1,106 @@
+# Corporate theme — MVP single theme.
+# Single source of truth for palette, fonts, and type scale.
+# render.py and reader.py both resolve against this file.
+
+palette:
+  # Base
+  background:     "#FFFFFF"   # 255-255-255 — slide bg
+  surface:        "#EBEBEB"   # 235-235-235 — alt panels, zebra rows
+  text_primary:   "#000000"   # 0-0-0       — body + headings
+  text_secondary: "#A1A8B3"   # 161-168-179 — captions, muted labels
+  text_inverse:   "#FFFFFF"
+
+  # Accent oranges (charts, tables, emphasis)
+  accent_primary:   "#FD5108" # 253-81-8    — strongest accent
+  accent_secondary: "#FE7C39" # 254-124-57  — medium; section numerals
+  accent_tertiary:  "#FFAA72" # 255-170-114 — light accent / soft fills
+
+  # Neutrals
+  neutral_strong: "#A1A8B3"   # 161-168-179
+  neutral_medium: "#B5BCC4"   # 181-188-196
+  neutral_soft:   "#CBD1D6"   # 203-209-214
+
+tints:
+  # Lighter orange wash — usable as chart fills, table headers, banner bg
+  orange_30: "#FFCDA8"        # 255-205-168
+  orange_60: "#FFE8D4"        # 255-232-212
+  orange_90: "#FFF5ED"        # 255-245-237 — near-bg, very soft
+
+  # Lighter grey wash — usable as zebra rows, subtle dividers
+  grey_30:   "#DFE3E6"        # 223-227-230
+  grey_60:   "#EEEFF1"        # 238-239-241
+  grey_90:   "#F5F7F8"        # 245-247-248 — near-bg
+
+status:
+  positive: "#059669"         # 5-150-105   — green
+  warning:  "#E9B01F"         # 233-176-31  — yellow
+  negative: "#E62626"         # 230-38-38   — red
+
+fonts:
+  heading: "Georgia"
+  body:    "Arial"
+  mono:    "Courier New"
+
+# Type scale — referenced by component renderers + measure_text.
+# "font" keys into the fonts: map above.
+type_scale:
+  section_number:
+    size_pt: 240
+    weight: 400              # Georgia regular at 240pt reads very large
+    line_height: 1.00
+    font: heading
+  h1:
+    size_pt: 36
+    weight: 700
+    line_height: 1.15
+    font: heading
+  h2:
+    size_pt: 24
+    weight: 700
+    line_height: 1.20
+    font: heading
+  h3:
+    size_pt: 18
+    weight: 700
+    line_height: 1.25
+    font: heading
+  body:
+    size_pt: 14
+    weight: 400
+    line_height: 1.40
+    font: body
+  caption:
+    size_pt: 11
+    weight: 400
+    line_height: 1.30
+    font: body
+  metric_value:
+    size_pt: 48
+    weight: 700
+    line_height: 1.00
+    font: heading
+  metric_label:
+    size_pt: 12
+    weight: 400
+    line_height: 1.30
+    font: body
+  quote:
+    size_pt: 28
+    weight: 400
+    line_height: 1.30
+    font: heading
+
+# Grid metrics — used by grid.py.
+# Canvas is 16:9; coordinates are fractional (0..1).
+grid:
+  cols: 12                   # inner content cells (horizontal)
+  rows: 12                   # inner content cells (vertical)
+  left_margin_cols: 0.5      # half-cell margin on the left
+  right_margin_cols: 0.5     # half-cell margin on the right
+  top_strip_rows: 1          # one-row strip at the top (header / logo)
+  bottom_strip_rows: 1       # one-row strip at the bottom (footer / page no.)
+
+canvas:
+  # Canvas size — defaults to widescreen 16:9 at 13.333" x 7.5" (PowerPoint's standard).
+  width_in: 13.333
+  height_in: 7.5
