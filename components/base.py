@@ -414,60 +414,94 @@ def render_chart(slide, ctx: Context, rect: dict, content: Any,
 
 
 TABLE_STYLES = {
-    # Style "header_accent": orange header band, plain body, no zebra.
-    # Matches slides 3 of the source deck. Default.
+    # header_accent: orange header band with white text. Body cells plain.
+    # Thin orange line below header and between body rows.
     "header_accent": {
         "header_bg":   "accent_primary",
         "header_fg":   "text_inverse",
-        "body_bg_a":   None,                  # None → transparent
-        "body_bg_b":   None,
+        "body_bg":     None,
         "body_fg":     "text_primary",
+        "first_col_bg": None,
+        "first_col_fg": None,
         "header_size": 14,
         "body_size":   12,
+        "row_divider": "accent_primary",   # line below header AND every body row
     },
-    # Style "zebra_neutral": plain header, alternating grey body rows.
-    # Matches slide 4 of the source deck.
+    # zebra_neutral: alternating light-grey body rows. Plain header with
+    # orange underline to mark it. No row dividers (zebra does the separation).
     "zebra_neutral": {
         "header_bg":   None,
         "header_fg":   "text_primary",
-        "body_bg_a":   "tints.grey_30",
+        "body_bg_a":   "tints.grey_30",     # zebra-specific override
         "body_bg_b":   None,
         "body_fg":     "text_primary",
+        "first_col_bg": None,
+        "first_col_fg": None,
         "header_size": 14,
         "body_size":   12,
+        "header_underline": "accent_primary",
     },
-    # Style "filled_accent": every cell orange. Slide 1 of source deck.
+    # filled_accent: first column orange + black text; other body cells white
+    # + black text. Orange row dividers between rows.
     "filled_accent": {
-        "header_bg":   "accent_primary",
-        "header_fg":   "text_inverse",
-        "body_bg_a":   "accent_primary",
-        "body_bg_b":   "accent_primary",
-        "body_fg":     "text_inverse",
-        "header_size": 12,
-        "body_size":   11,
-    },
-    # Style "filled_neutral": every cell light grey. Slide 2 of source deck.
-    "filled_neutral": {
-        "header_bg":   "tints.grey_30",
+        "header_bg":   None,
         "header_fg":   "text_primary",
-        "body_bg_a":   "tints.grey_30",
-        "body_bg_b":   "tints.grey_30",
+        "body_bg":     None,
         "body_fg":     "text_primary",
-        "header_size": 12,
-        "body_size":   11,
+        "first_col_bg": "accent_primary",
+        "first_col_fg": "text_primary",
+        "header_size": 14,
+        "body_size":   12,
+        "row_divider": "accent_primary",
     },
-    # Style "minimal": no fills anywhere; relies on font weight for header.
-    # Matches slides 32-35.
+    # filled_neutral: first column grey + black text; other body cells white
+    # + black text. Grey row dividers between rows.
+    "filled_neutral": {
+        "header_bg":   None,
+        "header_fg":   "text_primary",
+        "body_bg":     None,
+        "body_fg":     "text_primary",
+        "first_col_bg": "tints.grey_30",
+        "first_col_fg": "text_primary",
+        "header_size": 14,
+        "body_size":   12,
+        "row_divider": "tints.grey_30",
+    },
+    # minimal: no fills. Orange underline below header only; no body dividers.
     "minimal": {
         "header_bg":   None,
         "header_fg":   "text_primary",
-        "body_bg_a":   None,
-        "body_bg_b":   None,
+        "body_bg":     None,
         "body_fg":     "text_primary",
+        "first_col_bg": None,
+        "first_col_fg": None,
         "header_size": 14,
         "body_size":   12,
+        "header_underline": "accent_primary",
     },
 }
+
+
+def _set_cell_bottom_border(cell, color_hex: str, width_pt: float = 1.0):
+    """Add a bottom border to a cell via XML (python-pptx doesn't expose cell
+    borders through high-level API)."""
+    from lxml import etree
+    from pptx.oxml.ns import qn
+
+    tcPr = cell._tc.get_or_add_tcPr()
+    # Remove any existing lnB
+    for existing in tcPr.findall(qn("a:lnB")):
+        tcPr.remove(existing)
+    ln = etree.SubElement(tcPr, qn("a:lnB"))
+    ln.set("w", str(int(width_pt * 12700)))
+    ln.set("cap", "flat")
+    ln.set("cmpd", "sng")
+    ln.set("algn", "ctr")
+    solid = etree.SubElement(ln, qn("a:solidFill"))
+    color = etree.SubElement(solid, qn("a:srgbClr"))
+    color.set("val", color_hex.lstrip("#").upper())
+    prst = etree.SubElement(ln, qn("a:prstDash"))
+    prst.set("val", "solid")
 
 
 def render_table(slide, ctx: Context, rect: dict, content: Any,
@@ -477,12 +511,17 @@ def render_table(slide, ctx: Context, rect: dict, content: Any,
 
     Available styles: header_accent (default), zebra_neutral, filled_accent,
     filled_neutral, minimal. See TABLE_STYLES for the parameters of each.
+
+    The table shape is sized to fit the actual row content (compact rows),
+    not stretched to fill the cell. Row heights:
+      header: 0.45in   body: 0.40in
+    Anything below the table within the cell area is left blank.
     """
     if not isinstance(content, dict):
         raise ValueError("table content must be a dict")
 
     rect_emu = ctx.to_emu(rect)
-    left, top, w, h = rect_emu
+    left, top, slot_w, slot_h = rect_emu
 
     data = content.get("data", [])
     if not data:
@@ -493,8 +532,23 @@ def render_table(slide, ctx: Context, rect: dict, content: Any,
     style_name = content.get("style", "header_accent")
     style = TABLE_STYLES.get(style_name, TABLE_STYLES["header_accent"])
 
-    table_shape = slide.shapes.add_table(rows, cols, left, top, w, h)
+    # Compact row heights — sized to fit text + small padding, not stretched
+    # to fill the grid cell.
+    header_h_in = 0.45
+    body_h_in = 0.40
+    if has_header:
+        total_h_in = header_h_in + (rows - 1) * body_h_in
+    else:
+        total_h_in = rows * body_h_in
+    table_h = Inches(total_h_in)
+
+    table_shape = slide.shapes.add_table(rows, cols, left, top, slot_w, table_h)
     table = table_shape.table
+    # Set explicit row heights (PowerPoint sometimes redistributes; this
+    # ensures each row sticks to its target).
+    for r in range(rows):
+        is_header = has_header and r == 0
+        table.rows[r].height = Inches(header_h_in if is_header else body_h_in)
 
     body_font = ctx.font_name("body")
     heading_font = ctx.font_name("heading")
@@ -512,18 +566,30 @@ def render_table(slide, ctx: Context, rect: dict, content: Any,
             p.alignment = PP_ALIGN.LEFT
             run = p.add_run()
             is_header = has_header and r == 0
+            is_first_col = (c == 0) and not is_header
 
+            # Choose fg / bg / size
             if is_header:
                 fg_key = style["header_fg"]
                 size_pt = style["header_size"]
-                bg_key = style["header_bg"]
+                bg_key = style.get("header_bg")
                 use_heading_font = True
+            elif is_first_col and style.get("first_col_bg") is not None:
+                fg_key = style.get("first_col_fg") or style["body_fg"]
+                size_pt = style["body_size"]
+                bg_key = style["first_col_bg"]
+                use_heading_font = False
             else:
                 fg_key = style["body_fg"]
                 size_pt = style["body_size"]
-                # Alternating row fills
-                body_row_idx = r - (1 if has_header else 0)
-                bg_key = style["body_bg_a"] if body_row_idx % 2 == 0 else style["body_bg_b"]
+                # zebra mode uses body_bg_a / body_bg_b alternating; other styles
+                # use a single body_bg.
+                if "body_bg_a" in style:
+                    body_row_idx = r - (1 if has_header else 0)
+                    bg_key = (style["body_bg_a"] if body_row_idx % 2 == 0
+                              else style["body_bg_b"])
+                else:
+                    bg_key = style.get("body_bg")
                 use_heading_font = False
 
             _set_run(
@@ -541,6 +607,25 @@ def render_table(slide, ctx: Context, rect: dict, content: Any,
             else:
                 fill.solid()
                 fill.fore_color.rgb = ctx.rgb(bg_key)
+
+    # Borders: row dividers, header underline.
+    divider_color = style.get("row_divider")
+    header_underline = style.get("header_underline")
+    for r in range(rows):
+        is_header = has_header and r == 0
+        is_last = (r == rows - 1)
+        if is_header and header_underline:
+            for c in range(cols):
+                _set_cell_bottom_border(table.cell(r, c),
+                                        ctx.hex(header_underline), width_pt=1.0)
+        elif divider_color and not is_last:
+            for c in range(cols):
+                _set_cell_bottom_border(table.cell(r, c),
+                                        ctx.hex(divider_color), width_pt=1.0)
+        elif is_header and divider_color:
+            for c in range(cols):
+                _set_cell_bottom_border(table.cell(r, c),
+                                        ctx.hex(divider_color), width_pt=1.0)
 
 
 def render_quote(slide, ctx: Context, rect: dict, content: Any,
@@ -707,75 +792,102 @@ def _normalize_image_content(image):
 def render_card(slide, ctx: Context, rect: dict, content: Any,
                 style_overrides: dict | None = None,
                 variant: str = "image_left"):
-    """Card — a compound component that lays out image + label + body
-    inside a single grid placement.
+    """Card — a compound component that lays out image + label + sublabel +
+    body inside a single grid placement.
 
     The card handles its own internal proportions and gaps, so recipes that
-    use cards (matrix_2x2, team_grid_2x2, …) don't need to micro-place
-    sub-components on the grid.
+    use cards (matrix_2x2, team_strip, team_grid_2x2, …) don't need to
+    micro-place sub-components on the grid.
 
     content:
-      image  ('asset_id' | {asset_id, fit} | {placeholder, label} | None)
-      label  (str)
-      body   (str|list)
+      image     ('asset_id' | {asset_id, fit} | {placeholder, label} | None)
+      label     (str)         — main heading (h3)
+      sublabel  (str)         — optional secondary line under label (caption,
+                                secondary color). Use for role / subtitle.
+      body      (str|list)    — paragraph or bullets
 
     variants:
-      image_left  — image left ~32%, gap, label+body right; label/body
+      image_left  — image left ~30%, gap, text block right ~64%; text
                     vertically centered against the image
-      image_top   — image top ~60%, label+body bottom ~40%
-      text_only   — no image; label top, body fills the rest
+      image_top   — image top ~55%, gap, text block bottom ~40%
+      text_only   — no image; label/sublabel top, body fills the rest
+
+    Internal padding (gaps between sub-pieces) is built in. Recipes that
+    place cards on the grid should add their own inter-card gaps via row /
+    col gap cells.
     """
     if not isinstance(content, dict):
         return
 
     image = content.get("image")
     label = content.get("label", "")
+    sublabel = content.get("sublabel", "")
     body = content.get("body", "")
 
     if variant == "image_top":
-        _card_image_top(slide, ctx, rect, image, label, body)
+        _card_image_top(slide, ctx, rect, image, label, sublabel, body)
     elif variant == "text_only":
-        _card_text_only(slide, ctx, rect, label, body)
+        _card_text_only(slide, ctx, rect, label, sublabel, body)
     else:
-        _card_image_left(slide, ctx, rect, image, label, body)
+        _card_image_left(slide, ctx, rect, image, label, sublabel, body)
 
 
-def _card_image_left(slide, ctx, rect, image, label, body):
-    # Fractions of card width: image 32%, gap 6%, text 62%.
-    img_w = rect["w"] * 0.32
+def _render_text_stack(slide, ctx, x, y, w, h, label, sublabel, body):
+    """Render label + sublabel + body stacked vertically, top-anchored.
+
+    Uses fixed proportions: label 25% of h, sublabel 18%, body 57%. If
+    sublabel is empty, allocates its share to body.
+    """
+    has_sub = bool(sublabel)
+    label_frac = 0.25
+    sub_frac = 0.18 if has_sub else 0.0
+    body_frac = 1.0 - label_frac - sub_frac
+
+    label_h = h * label_frac
+    sub_h = h * sub_frac
+    body_h = h * body_frac
+
+    cur_y = y
+    if label:
+        render_heading(slide, ctx,
+                       {"x": x, "y": cur_y, "w": w, "h": label_h},
+                       label, level="h3", vertical_anchor="top")
+    cur_y += label_h
+    if has_sub:
+        render_text(slide, ctx,
+                    {"x": x, "y": cur_y, "w": w, "h": sub_h},
+                    sublabel, level="caption", color_key="text_secondary",
+                    vertical_anchor="top")
+        cur_y += sub_h
+    if body:
+        render_text(slide, ctx,
+                    {"x": x, "y": cur_y, "w": w, "h": body_h},
+                    body, level="body", vertical_anchor="top")
+
+
+def _card_image_left(slide, ctx, rect, image, label, sublabel, body):
+    # Fractions of card width: image 30%, gap 6%, text 64%.
+    img_w = rect["w"] * 0.30
     gap_w = rect["w"] * 0.06
     txt_w = rect["w"] - img_w - gap_w
     txt_x = rect["x"] + img_w + gap_w
 
-    # Image fills full card height.
     render_image(
         slide, ctx,
         {"x": rect["x"], "y": rect["y"], "w": img_w, "h": rect["h"]},
         _normalize_image_content(image),
     )
 
-    # Text block centered vertically against the image.
-    # Allocate 35% of card height to label, 50% to body, total 85% centered.
-    label_h = rect["h"] * 0.35
-    body_h = rect["h"] * 0.50
-    text_block_h = label_h + body_h
-    text_top = rect["y"] + (rect["h"] - text_block_h) / 2
-
-    if label:
-        render_heading(
-            slide, ctx,
-            {"x": txt_x, "y": text_top, "w": txt_w, "h": label_h},
-            label, level="h3", vertical_anchor="bottom",
-        )
-    if body:
-        render_text(
-            slide, ctx,
-            {"x": txt_x, "y": text_top + label_h, "w": txt_w, "h": body_h},
-            body, level="body", vertical_anchor="top",
-        )
+    # Text stack centered vertically against the image.
+    has_sub = bool(sublabel)
+    block_frac = 0.85 if has_sub else 0.75
+    block_h = rect["h"] * block_frac
+    block_top = rect["y"] + (rect["h"] - block_h) / 2
+    _render_text_stack(slide, ctx, txt_x, block_top, txt_w, block_h,
+                       label, sublabel, body)
 
 
-def _card_image_top(slide, ctx, rect, image, label, body):
+def _card_image_top(slide, ctx, rect, image, label, sublabel, body):
     img_h = rect["h"] * 0.55
     gap_h = rect["h"] * 0.05
     text_h = rect["h"] - img_h - gap_h
@@ -785,40 +897,17 @@ def _card_image_top(slide, ctx, rect, image, label, body):
         {"x": rect["x"], "y": rect["y"], "w": rect["w"], "h": img_h},
         _normalize_image_content(image),
     )
-    label_h = text_h * 0.40
-    body_h = text_h - label_h
-    text_top = rect["y"] + img_h + gap_h
-    if label:
-        render_heading(
-            slide, ctx,
-            {"x": rect["x"], "y": text_top, "w": rect["w"], "h": label_h},
-            label, level="h3", vertical_anchor="top",
-        )
-    if body:
-        render_text(
-            slide, ctx,
-            {"x": rect["x"], "y": text_top + label_h,
-             "w": rect["w"], "h": body_h},
-            body, level="body", vertical_anchor="top",
-        )
+    _render_text_stack(
+        slide, ctx, rect["x"], rect["y"] + img_h + gap_h,
+        rect["w"], text_h, label, sublabel, body,
+    )
 
 
-def _card_text_only(slide, ctx, rect, label, body):
-    label_h = rect["h"] * 0.30
-    body_h = rect["h"] - label_h
-    if label:
-        render_heading(
-            slide, ctx,
-            {"x": rect["x"], "y": rect["y"], "w": rect["w"], "h": label_h},
-            label, level="h3", vertical_anchor="top",
-        )
-    if body:
-        render_text(
-            slide, ctx,
-            {"x": rect["x"], "y": rect["y"] + label_h,
-             "w": rect["w"], "h": body_h},
-            body, level="body", vertical_anchor="top",
-        )
+def _card_text_only(slide, ctx, rect, label, sublabel, body):
+    _render_text_stack(
+        slide, ctx, rect["x"], rect["y"], rect["w"], rect["h"],
+        label, sublabel, body,
+    )
 
 
 # ---------- Dispatch ----------
