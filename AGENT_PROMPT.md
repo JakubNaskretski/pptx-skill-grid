@@ -212,30 +212,37 @@ For each batch:
   6. **Render the in-progress preview** so the user can SEE what's
      built so far:
        python render.py /tmp/plan.json /tmp/preview.pptx
-     This produces a real `.pptx` of the deck so far. The user opens it,
-     reviews visually, gives feedback on actual rendered slides — not
-     on JSON specs.
-  7. **Report** to the user with content inline + paths:
+     This produces a real `.pptx` of the deck so far.
+  7. **Report** with a clickable download link to the preview +
+     content inline. The user needs to be able to OPEN the preview
+     with one click — never just a raw path. Same delivery rules as
+     Phase 5: use your platform's link syntax (e.g.
+     `[📥 Open preview.pptx](sandbox:/mnt/data/preview.pptx)`) or
+     attach the file.
 
-       "Batch 2 ready — preview: /tmp/preview.pptx (open to see slides 1-6).
+     Format the batch report like this:
 
-          Slide 4 — title_bullets — "Macro softened in H2"
-            • Industry growth fell to 3%
-            • Enterprise budgets tightened
-            • Win rates held flat
-            [/tmp/slide_4.json — validate-slide: ok]
+       Batch 2 ready (slides 1-6 so far).
 
-          Slide 5 — chart_with_takeaway — "Sector decelerated; we held growth"
-            Column chart, industry vs us, Q1-Q4
-            Takeaway: 3 bullets
-            [/tmp/slide_5.json — validate-slide: ok, 1 minor warning]
+       📥 [Open preview.pptx](<platform link>)
 
-          Slide 6 — single_metric — "Total contract value, FY25"
-            $23.8M hero, +24% YoY caption
-            [/tmp/slide_6.json — validate-slide: ok]
+         Slide 4 — title_bullets — "Macro softened in H2"
+           • Industry growth fell to 3%
+           • Enterprise budgets tightened
+           • Win rates held flat
+           [validate-slide: ok]
 
-        Open the preview and let me know what to revise, or 'continue'
-        for the next batch."
+         Slide 5 — chart_with_takeaway — "Sector decelerated; we held growth"
+           Column chart, industry vs us, Q1-Q4
+           Takeaway: 3 bullets
+           [validate-slide: ok, 1 minor warning]
+
+         Slide 6 — single_metric — "Total contract value, FY25"
+           $23.8M hero, +24% YoY caption
+           [validate-slide: ok]
+
+       Open the preview and let me know what to revise, or say
+       "continue" for the next batch.
 
   8. **Wait** for batch acceptance before next batch.
 
