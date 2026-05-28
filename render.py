@@ -1,11 +1,14 @@
-"""render.py — turn a plan.json into a .pptx with image placeholders.
+"""render.py — turn a plan.json into a .pptx.
 
 Usage:
-  python render.py plan.json out.pptx [--theme theme.yaml]
+  python render.py plan.json out.pptx [--theme theme.yaml] [--assets DIR]
+                                       [--no-splice]
 
-After render, image components are placeholder shapes whose `name` attribute
-starts with `ASSET_PLACEHOLDER:`. Run splice_assets.py to swap them for real
-binaries.
+Render produces a .pptx with image placeholders. If an `assets/` directory
+exists (either passed via --assets or the bundled skill assets/ folder),
+this script auto-splices the binaries in so the output is a ready-to-ship
+deck. Pass --no-splice to keep the placeholder version (e.g. for re-splicing
+later against a different asset folder).
 """
 
 from __future__ import annotations
@@ -109,12 +112,32 @@ def _load_json(path: str) -> dict:
         return json.load(f)
 
 
+DEFAULT_ASSETS_DIR = Path(__file__).parent / "assets"
+
+
+def _should_splice(assets_dir: Path) -> bool:
+    """True iff the directory has at least one sidecar .yaml that isn't the
+    README/vocab/theme."""
+    if not assets_dir.exists() or not assets_dir.is_dir():
+        return False
+    skip = {"theme.yaml", "asset_tag_vocab.yaml"}
+    for p in assets_dir.glob("*.yaml"):
+        if p.name not in skip:
+            return True
+    return False
+
+
 def _cli():
     p = argparse.ArgumentParser(prog="render")
     p.add_argument("plan", help="plan.json")
     p.add_argument("out", help="output .pptx path")
     p.add_argument("--theme", default=None,
                    help="theme.yaml path (defaults to ./theme.yaml)")
+    p.add_argument("--assets", default=None,
+                   help="asset directory (defaults to bundled assets/ if present). "
+                        "Pass an external path to override.")
+    p.add_argument("--no-splice", action="store_true",
+                   help="Skip the splice step and leave image placeholders.")
     args = p.parse_args()
 
     plan = _load_json(args.plan)
@@ -123,6 +146,24 @@ def _cli():
 
     render(plan, theme, args.out)
     print(f"wrote {args.out}", file=sys.stderr)
+
+    # Auto-splice unless suppressed.
+    if args.no_splice:
+        return
+    assets_dir = Path(args.assets) if args.assets else DEFAULT_ASSETS_DIR
+    if _should_splice(assets_dir):
+        try:
+            from splice_assets import splice
+        except ImportError:
+            print("(splice_assets.py not importable — skipping splice)", file=sys.stderr)
+            return
+        warnings = splice(args.out, str(assets_dir), args.out)
+        print(f"spliced from {assets_dir}"
+              + (f" ({len(warnings)} warnings)" if warnings else ""),
+              file=sys.stderr)
+    else:
+        print(f"(no sidecars in {assets_dir} — leaving placeholders)",
+              file=sys.stderr)
 
 
 if __name__ == "__main__":

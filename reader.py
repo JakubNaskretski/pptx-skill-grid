@@ -52,6 +52,7 @@ from toolbelt import (
 
 
 THEME_PATH = Path(__file__).parent / "theme.yaml"
+DEFAULT_ASSETS_DIR = Path(__file__).parent / "assets"
 
 
 # ---------- helpers ----------
@@ -165,12 +166,16 @@ def chart_sanity(content: dict) -> dict:
 _ASSET_BINARY_SUFFIXES = {".jpg", ".jpeg", ".png", ".svg", ".gif", ".webp"}
 
 
-def read_assets(asset_dir: str) -> list[dict]:
+def read_assets(asset_dir: str | None = None) -> list[dict]:
     """Walk asset_dir, return list of asset summaries from sidecar YAMLs.
 
     A sidecar is a file `<id>.yaml` next to the binary. Returns the parsed
     YAML for each, with id defaulting to the filename stem if missing.
+
+    If `asset_dir` is None, defaults to the skill's bundled assets/ folder.
     """
+    if asset_dir is None:
+        asset_dir = str(DEFAULT_ASSETS_DIR)
     root = Path(asset_dir)
     if not root.exists() or not root.is_dir():
         return []
@@ -193,7 +198,7 @@ def read_assets(asset_dir: str) -> list[dict]:
 
 
 def find_asset(
-    asset_dir: str,
+    asset_dir: str | None = None,
     kind: str | None = None,
     tags: list[str] | None = None,
     limit: int = 10,
@@ -201,6 +206,7 @@ def find_asset(
     """Filter assets in `asset_dir` by kind + tags (AND). Returns up to `limit`.
 
     Broadening: if tags filter yields zero, retry without tags (one step only).
+    If `asset_dir` is None, scans the skill's bundled assets/ folder.
     """
     assets = read_assets(asset_dir)
     matches = []
@@ -482,10 +488,12 @@ def _cli():
     r.add_argument("--content", required=True)
 
     r = sub.add_parser("read-assets")
-    r.add_argument("asset_dir")
+    r.add_argument("asset_dir", nargs="?", default=None,
+                   help="path to assets directory (default: bundled assets/)")
 
     r = sub.add_parser("find-asset")
-    r.add_argument("asset_dir")
+    r.add_argument("asset_dir", nargs="?", default=None,
+                   help="path to assets directory (default: bundled assets/)")
     r.add_argument("--kind", default=None)
     r.add_argument("--tags", default=None, help="comma-separated")
     r.add_argument("--limit", type=int, default=10)

@@ -256,15 +256,18 @@ auto-fixed). Specifically:
 - `palette_audit` → remove the off-palette `color_hex` from style_overrides.
 - `chart_sanity` → switch chart type per `suggested_type`.
 
-When `validate-plan` returns `ok: true`, output the final `plan.json`
-path and stop. The user will run:
+When `validate-plan` returns `ok: true`, render to a `.pptx`:
 
 ```bash
 python render.py plan.json out.pptx
-python splice_assets.py out.pptx --assets /path/to/assets -o final.pptx
 ```
 
-You **do not** run these. You stop at the plan.
+This produces the final deck. If sidecar YAMLs exist in the bundled
+`assets/` folder, the image placeholders get spliced for real binaries
+automatically. Pass `--assets /path/to/external/` to override the default
+asset source, or `--no-splice` to keep placeholders (rare).
+
+Hand the path to the rendered `.pptx` to the user as your final output.
 
 ---
 
@@ -483,29 +486,29 @@ returns errors, you have work to do.
 
 ## Asset workflow
 
-Asset binaries do not live in the skill bundle. They live in a folder
-the user points at.
+Assets live in the skill's bundled `assets/` folder by default. Each
+binary has a sidecar YAML next to it:
 
 ```
-/path/to/your/assets/
+assets/
 ├── hero_team.jpg
 ├── hero_team.yaml         ← sidecar (id, kind, dims, tags, description)
-├── product_shot.png
-├── product_shot.yaml
+├── pictogram_xx.svg
+├── pictogram_xx.yaml
 └── …
 ```
 
-Before you can pick assets, the user must have run:
+You discover assets via:
 
 ```bash
-python describe_assets.py /path/to/assets/
+python reader.py find-asset --kind photo --tags people,office
 ```
 
-This auto-fills mechanical metadata. Tags and descriptions are filled by
-the user or via a vision LLM using `prompts/describe_asset.md`.
+No `<asset_dir>` argument needed — defaults to `./assets/`. To search a
+non-bundled folder, pass the path positionally:
+`python reader.py find-asset /path/to/external/assets --kind photo`.
 
-You discover assets via `reader.py find-asset`. You never read sidecar
-files by hand.
+You never read sidecar files by hand.
 
 When you reference an asset in a plan, use its `id`:
 
@@ -513,8 +516,8 @@ When you reference an asset in a plan, use its `id`:
 {"type": "image", "grid": {…}, "content": {"asset_id": "hero_team", "fit": "fill"}}
 ```
 
-The render step writes placeholders; `splice_assets.py` swaps them for
-the binaries after rendering.
+`render.py` auto-splices the binaries in if they're present in `assets/`.
+You don't need to think about splicing — it's handled.
 
 ---
 

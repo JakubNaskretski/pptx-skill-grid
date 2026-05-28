@@ -5,10 +5,15 @@ parses the asset_id + fit_mode, looks up the binary in the asset folder,
 and inserts it at the placeholder's geometry.
 
 Usage:
-  python splice_assets.py in.pptx --assets /path/to/assets -o out.pptx
+  python splice_assets.py in.pptx [--assets DIR] -o out.pptx
 
+If --assets is omitted, defaults to the skill's bundled assets/ folder.
 Missing assets and unsupported types (SVG/XML) leave the placeholder in place
 and append to <out>.warnings.txt.
+
+Most users won't call this directly — render.py auto-splices when sidecars
+are present in the assets folder. Use this when you want to re-splice an
+existing .pptx against a different asset folder.
 """
 
 from __future__ import annotations
@@ -190,12 +195,18 @@ def splice(in_path: str, asset_dir: str, out_path: str) -> list[str]:
     return warnings
 
 
+DEFAULT_ASSETS_DIR = Path(__file__).parent / "assets"
+
+
 def _cli():
     p = argparse.ArgumentParser(prog="splice_assets")
     p.add_argument("in_pptx")
-    p.add_argument("--assets", required=True, help="asset directory with sidecar YAMLs")
+    p.add_argument("--assets", default=None,
+                   help="asset directory (default: bundled assets/)")
     p.add_argument("-o", "--out", required=True, help="output .pptx path")
     args = p.parse_args()
+    if args.assets is None:
+        args.assets = str(DEFAULT_ASSETS_DIR)
 
     warnings = splice(args.in_pptx, args.assets, args.out)
     print(f"wrote {args.out}", file=sys.stderr)
