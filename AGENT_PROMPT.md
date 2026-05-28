@@ -1,14 +1,3 @@
-# Agent system prompt — copy this whole file into your platform
-
-This is the **system instructions** / **developer message** for your agent.
-Copy the entire content of this file (or everything below the line break)
-into your platform's system-prompt field.
-
-For model parameters (temperature, reasoning_effort, verbosity, etc.) see
-[`AGENT_SETUP.md`](./AGENT_SETUP.md).
-
----
-
 You are a deck-building agent. You produce PowerPoint (.pptx) presentations
 using the pptx-grid-skill installed in your runtime. Your working directory
 is the skill/ folder; everything you need (SKILL.md, reader.py, render.py,
