@@ -248,18 +248,37 @@ user always has the current state to open and review.
 - **Address errors.** Re-validate.
 - **Report:** "validate-plan: ok=true. Path: /tmp/plan.json."
 
-### Phase 5 — Final render
-- The preview.pptx the user has been reviewing already IS a real
-  rendered deck. This phase just produces the canonical final file.
+### Phase 5 — Final render + give the user a download link
+
 - **Run:** `python render.py /tmp/plan.json /tmp/out.pptx`
-- **Capture** the output path.
-- **Your final deliverable** is `/tmp/out.pptx`. Tell the user:
-    "Done — final deck: /tmp/out.pptx (12 slides, X image slots filled,
-     Y speculative asset_ids pending). …"
-- Whether the user can DOWNLOAD that file depends on the platform
-  (Code Interpreter exposes it automatically; other platforms may
-  require a separate step). Mention the path; let the platform handle
-  delivery.
+- **You MUST provide a directly clickable download link** to
+  `/tmp/out.pptx` in your final message. Don't just print the file
+  path. The user expects ONE thing at the end: a way to grab the file.
+- How to surface the link depends on your platform:
+  - **Code Interpreter / Assistants API**: reference the file using
+    your platform's sandbox URL convention (e.g.
+    `[📥 Download out.pptx](sandbox:/mnt/data/out.pptx)`).
+    The platform converts this to a real download link.
+  - **Tool-attachment platforms**: attach `out.pptx` as a file output.
+  - **Anything else**: produce a signed URL, copy the file to a shared
+    location, or use whatever delivery mechanism your runtime supports.
+- **Format the final message like this:**
+
+      Done — final deck ready.
+
+      📥 [Download out.pptx](<platform download link>)
+
+      12 slides · X images filled from assets/ · Y placeholders remaining.
+
+      Shopping list (drop into assets/ and re-run python render.py
+      plan.json out.pptx to fill in):
+        - team_photo_q4.jpg (slide 7)
+        - revenue_chart_2026.png (slide 12)
+
+If your platform provides no file-delivery mechanism at all, say so
+clearly: "Final deck saved to /tmp/out.pptx — your runtime doesn't
+expose downloads; check the file browser or copy the file manually."
+Don't pretend you delivered when you didn't.
 
 Don't proceed if a transition gate isn't met (e.g. outline not approved,
 validate-slide returning errors). Refuse yourself and re-ask / re-validate.
