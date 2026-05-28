@@ -888,18 +888,23 @@ def _card_image_left(slide, ctx, rect, image, label, sublabel, body):
 
 
 def _card_image_top(slide, ctx, rect, image, label, sublabel, body):
+    # Constrain image AND text to 80% of card width, left-aligned. The right
+    # 20% is empty so adjacent image_top cards (e.g. team_strip) have a
+    # visible horizontal gap between their photos rather than touching.
+    content_width_frac = 0.80
+    inner_w = rect["w"] * content_width_frac
     img_h = rect["h"] * 0.55
     gap_h = rect["h"] * 0.05
     text_h = rect["h"] - img_h - gap_h
 
     render_image(
         slide, ctx,
-        {"x": rect["x"], "y": rect["y"], "w": rect["w"], "h": img_h},
+        {"x": rect["x"], "y": rect["y"], "w": inner_w, "h": img_h},
         _normalize_image_content(image),
     )
     _render_text_stack(
         slide, ctx, rect["x"], rect["y"] + img_h + gap_h,
-        rect["w"], text_h, label, sublabel, body,
+        inner_w, text_h, label, sublabel, body,
     )
 
 
