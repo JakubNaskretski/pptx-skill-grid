@@ -12,8 +12,7 @@
     "must_include",
     "must_avoid",
     "assets_provided",
-    "data_provided",
-    "deadline"
+    "data_provided"
   ],
   "additionalProperties": false,
   "properties": {
@@ -61,10 +60,6 @@
       "type": "array",
       "items": {"type": "string"},
       "description": "Numbers, tables, sources for charts and KPIs. Free-form references."
-    },
-    "deadline": {
-      "type": "string",
-      "description": "When the deck is needed. ISO date or descriptive."
     }
   }
 }

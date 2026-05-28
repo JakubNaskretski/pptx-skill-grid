@@ -25,7 +25,7 @@ anything missing isn't a dealbreaker.
 | `frequency_penalty` | **0.0** | Decks legitimately repeat tokens — same recipe name many times, same phrasing patterns across slides. Penalizing repetition would make the agent dodge recipe names. Leave off. |
 | `presence_penalty` | **0.0** | We want the agent to stay on topic (the brief), not introduce new concepts. Leave off. |
 | `reasoning_effort` | **medium** (default) | The agent's work is multi-step: pick recipe → fill content → validate → revise. Medium gives the model room to plan a slide without exploding latency. Use **high** if the user reports the agent making bad recipe choices or skipping validation. |
-| `reasoning_summary` | **auto** | Visibility for debugging. Set **none** in production once you're confident. |
+| `reasoning_summary` | **none** | If left on `auto`, the platform may show the model's chain-of-thought to the user — which looks like the agent "spilling its thoughts" even when the prompt forbids it. Keep `none` unless you're debugging. |
 | `verbosity` | **low** | Every agent output is structured (JSON for brief/outline/plan, one-line confirmations otherwise). The SKILL.md voice section explicitly forbids paragraph-style replies. Low verbosity reinforces this. |
 | `image_detail` | **low** (or N/A) | The compose phase has no vision input — assets are described in text via their sidecar YAMLs. If your platform requires a value, low is fine. |
 | `max_output_tokens` / context | leave high | A 25-slide plan + reasoning trace can be ~10-20K tokens. Don't truncate. |
@@ -38,7 +38,7 @@ anything missing isn't a dealbreaker.
   "top_p": 1.0,
   "frequency_penalty": 0.0,
   "presence_penalty": 0.0,
-  "reasoning": {"effort": "medium", "summary": "auto"},
+  "reasoning": {"effort": "medium", "summary": "none"},
   "text": {"verbosity": "low"}
 }
 ```

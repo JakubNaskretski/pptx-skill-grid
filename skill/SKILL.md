@@ -72,7 +72,6 @@ Required fields (see `schemas/brief.schema.json`):
 | `must_avoid` | NDAs, taboos, off-limits topics | (empty is fine) |
 | `assets_provided` | Paths / identifiers of supplied images | (empty is fine — agent can search) |
 | `data_provided` | Numbers / tables / sources for KPIs and charts | "we have numbers" |
-| `deadline` | When the deck is needed | (descriptive is fine) |
 
 ### How you ask
 
