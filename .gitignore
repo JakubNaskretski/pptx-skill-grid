@@ -12,6 +12,10 @@ skill/assets/*.gif
 skill/assets/*.tiff
 skill/assets/*.bmp
 
+# Template opening slide — pre-rendered .pptx the renderer prepends to
+# every deck. Each machine / org keeps its own; never commit.
+skill/templates/*.pptx
+
 __pycache__/
 *.pyc
 *.pyo

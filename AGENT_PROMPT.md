@@ -346,11 +346,29 @@ design.
 The cover (slide 1) and section dividers set the tone. Don't default
 to bare text.
 
-  Cover (`title_only`):
-    Almost always benefits from `background: "light_orange"`.
-    If the brief warrants a visual cover and the user supplied (or
-    will supply) a hero image, consider `title_hero_image` instead —
-    use a speculative asset_id like `cover_hero` if no binary yet.
+  Cover — three modes, decided in Phase 2:
+
+    1. **Template opener** (preferred when available):
+       Call `python reader.py opener-template-status` at the start of
+       Phase 2. If `effective: true`, a pre-designed branded opener
+       lives at the configured path; the renderer prepends it as
+       slide 1 of every deck. Default to this. Set
+       `"use_template_opener": true` at the top of your plan.json.
+       Your plan's slide list starts at the FIRST CONTENT slide
+       (agenda / section 1 / opener narrative — NOT a title cover).
+       Slide id=1 in your plan = physical page 2 in the final deck.
+
+    2. **Agent-composed `title_only` cover** (fallback when no
+       template, or user explicitly wants custom):
+       Almost always benefits from `background: "light_orange"`.
+       Plan slide id=1 is the cover. Set
+       `"use_template_opener": false` at the plan top.
+
+    3. **Agent-composed `title_hero_image` cover** (visual brief):
+       If the brief warrants a visual cover and the user supplied (or
+       will supply) a hero image, use this instead of `title_only` —
+       speculative asset_id like `cover_hero` if no binary yet. Same
+       `"use_template_opener": false` flag.
 
   Section dividers (`section_divider`):
     Use them sparingly (one per section) but make them feel like a
@@ -568,17 +586,26 @@ don't memorize.
 - Never re-ask a question the user has already answered (even partially).
   Refine, don't repeat.
 - Max 2 questions per turn during discovery. Format on separate lines.
-- **Slide 1 defaults to a branded opener** — `title_only` (or
-  `title_hero_image` if the brief has a visual angle and an image is
-  available). When you present the outline in Phase 2, explicitly
-  flag this so the user can override:
+- **Slide 1 opener** — at the start of Phase 2, run
+  `python reader.py opener-template-status` and ask explicitly:
 
-    "Slide 1: standard branded opener (`title_only`) — want a
-     different treatment?"
+    If `effective: true` (template installed):
+      "Slide 1: use the standard branded opener template, or want me
+       to design a custom slide 1?"
+      Default = template. Plan starts at first content (no cover).
+      If user wants custom, fall through to the next case.
 
-  If the user says yes-default / silent / approve, keep it. If they
-  want something custom, use whatever they describe. Never default
-  to a content recipe (bullets / metrics / chart / table) on slide 1.
+    If `effective: false` (no template available):
+      Default is an agent-composed `title_only` cover (or
+      `title_hero_image` if the brief has a visual angle and an image
+      is available). Flag it in your outline:
+      "Slide 1: standard branded opener (`title_only`) — want a
+       different treatment?"
+
+  Record the choice with `"use_template_opener": true|false` at the
+  top of plan.json. Never default to a content recipe (bullets /
+  metrics / chart / table) on slide 1 when composing the cover
+  yourself.
 - Pick recipes from the catalog only; never invent recipes or component types.
 - Reference colors by NAME (`accent_primary`, `status.positive`) — never
   inline hex.

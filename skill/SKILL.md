@@ -536,6 +536,9 @@ python reader.py read-assets [<asset_dir>] [--external-dir DIR]
 python reader.py find-asset [<asset_dir>] --kind photo --tags people,office --limit 5
 python reader.py preview-asset <asset_id>     # SVG → abs_path; raster → not available
 
+# Template opener (Phase 2 outline step)
+python reader.py opener-template-status        # returns {enabled, exists, effective}
+
 # Full validation
 python reader.py validate-plan plan.json
 ```
@@ -609,10 +612,23 @@ You don't need to think about splicing — it's handled.
 
 ## Plan format
 
+Top-level fields:
+- `version` — always `"1"`.
+- `deck_title` — appears next to the company name in the non-cover header.
+- `use_template_opener` — `true` if the renderer should prepend the
+  pre-designed opener template (from `skill/templates/opening-slide.pptx`).
+  When `true`, your `slides` list starts at the first **content** slide
+  (no cover). When `false` (or omitted with no template configured),
+  slide id=1 is an agent-composed cover. Run
+  `python reader.py opener-template-status` to know which is appropriate;
+  ask the user in Phase 2 if a template is available.
+- `slides` — ordered list of slide specs.
+
 ```json
 {
   "version": "1",
   "deck_title": "Q4 results",
+  "use_template_opener": true,
   "slides": [
     {
       "id": 1,

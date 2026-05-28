@@ -39,6 +39,13 @@ SHOW_PRESENTATION_TITLE = True
 # None → splice uses its default ../assets-external/ (sibling of the repo).
 # Set an absolute path if your external folder lives elsewhere.
 EXTERNAL_ASSETS_DIR = None
+
+# Pre-rendered opener slide. Drop your branded opening slide as a one-slide
+# .pptx at skill/templates/opening-slide.pptx — it gets prepended to every
+# deck (unless the agent's plan sets use_template_opener: false). See
+# skill/templates/README.md for details.
+USE_TEMPLATE_OPENER = True
+TEMPLATE_OPENER_PATH = "templates/opening-slide.pptx"   # relative to skill/
 # -----------------------------------------------------------------------------
 
 
@@ -84,16 +91,21 @@ from recipes import RECIPES
 
 
 def _apply_decorations(slide, ctx: Context, slide_spec: dict, plan: dict,
-                       total_slides: int) -> None:
+                       total_slides: int, is_cover: bool = False,
+                       page_offset: int = 0) -> None:
     """Stamp logo, presentation title, and page number on every non-cover
     slide. Driven by the ORG SETTINGS constants at the top of this file.
-    Skips cover (id=1)."""
+
+    is_cover: skip decorations entirely (cover slide owns its own design).
+    page_offset: added to slide_id when computing displayed page number
+        (used to account for prepended template opener slides).
+    """
     from pptx.enum.text import PP_ALIGN
     from pptx.util import Pt
 
+    if is_cover:
+        return
     slide_id = slide_spec.get("id", 0)
-    if slide_id == 1:
-        return  # cover skips decorations
 
     canvas_w_in = ctx.canvas_w_in
     canvas_h_in = ctx.canvas_h_in
@@ -130,7 +142,7 @@ def _apply_decorations(slide, ctx: Context, slide_spec: dict, plan: dict,
 
     # --- 2. Page number at footer-right ---
     if PAGE_NUMBERS:
-        text = f"{slide_id} / {total_slides}"
+        text = f"{slide_id + page_offset} / {total_slides}"
         box = slide.shapes.add_textbox(
             Inches(canvas_w_in * 0.85),
             Inches(footer_y_in),
@@ -217,17 +229,56 @@ def _apply_decorations(slide, ctx: Context, slide_spec: dict, plan: dict,
             run.font.color.rgb = ctx.rgb("text_secondary")
 
 
-def render(plan: dict, theme: dict, out_path: str) -> None:
-    prs = Presentation()
-    canvas = theme.get("canvas", {})
-    prs.slide_width = Inches(canvas.get("width_in", 13.333))
-    prs.slide_height = Inches(canvas.get("height_in", 7.5))
+def _resolve_template_opener(plan: dict, override_disabled: bool) -> Path | None:
+    """Return the path to the template opener if it should be used, else None.
+
+    Decision rules (in order):
+      1. --no-template-opener CLI flag (override_disabled=True) → None
+      2. USE_TEMPLATE_OPENER constant False → None
+      3. plan.use_template_opener == False (explicit opt-out) → None
+      4. Template file missing on disk → None (with a stderr warning)
+      5. Otherwise → the resolved Path
+    """
+    if override_disabled or not USE_TEMPLATE_OPENER:
+        return None
+    if plan.get("use_template_opener") is False:
+        return None
+    template_path = Path(__file__).parent / TEMPLATE_OPENER_PATH
+    if not template_path.exists():
+        # Configured but missing — warn and proceed without it.
+        print(f"(template opener configured but missing: {template_path})",
+              file=sys.stderr)
+        return None
+    return template_path
+
+
+def render(plan: dict, theme: dict, out_path: str,
+           no_template_opener: bool = False) -> None:
+    template_path = _resolve_template_opener(plan, no_template_opener)
+    has_template = template_path is not None
+
+    if has_template:
+        # Load from template — its slide becomes slide 1, masters/layouts
+        # come along. Agent's slides will append after.
+        prs = Presentation(str(template_path))
+    else:
+        prs = Presentation()
+        canvas = theme.get("canvas", {})
+        prs.slide_width = Inches(canvas.get("width_in", 13.333))
+        prs.slide_height = Inches(canvas.get("height_in", 7.5))
 
     ctx = Context.from_theme(theme)
 
-    # Use the blank layout — index 6 is typical for "Blank" in default master.
-    blank_layout = prs.slide_layouts[6]
-    total_slides = len(plan.get("slides", []))
+    # Pick the blank layout. Standard PowerPoint masters expose 7 layouts
+    # with Blank at index 6; if the template was saved from a non-standard
+    # base it may have fewer — fall back to the first layout in that case.
+    try:
+        blank_layout = prs.slide_layouts[6]
+    except IndexError:
+        blank_layout = prs.slide_layouts[0]
+
+    template_offset = 1 if has_template else 0
+    total_slides = template_offset + len(plan.get("slides", []))
 
     for slide_spec in plan.get("slides", []):
         slide = prs.slides.add_slide(blank_layout)
@@ -250,8 +301,15 @@ def render(plan: dict, theme: dict, out_path: str) -> None:
         for placement in placements:
             render_component(slide, ctx, placement)
 
-        # Decorations (logo, page number, presentation title) — non-cover only.
-        _apply_decorations(slide, ctx, slide_spec, plan, total_slides)
+        # Decoration / cover rules:
+        #   - With template: template owns the cover, so no agent slide is
+        #     "the cover" — decorate every slide. Page numbers offset by 1.
+        #   - Without template: agent's id=1 is the cover, skip decorations.
+        is_cover = (not has_template) and slide_spec.get("id") == 1
+        _apply_decorations(
+            slide, ctx, slide_spec, plan, total_slides,
+            is_cover=is_cover, page_offset=template_offset,
+        )
 
     prs.save(out_path)
 
@@ -296,13 +354,16 @@ def _cli():
                         "Holds photo binaries that live outside the skill.")
     p.add_argument("--no-splice", action="store_true",
                    help="Skip the splice step and leave image placeholders.")
+    p.add_argument("--no-template-opener", action="store_true",
+                   help="Skip the pre-rendered opening slide template for "
+                        "this render, even if one is configured + on disk.")
     args = p.parse_args()
 
     plan = _load_json(args.plan)
     theme_path = args.theme or str(Path(__file__).parent / "theme.yaml")
     theme = _load_yaml(theme_path)
 
-    render(plan, theme, args.out)
+    render(plan, theme, args.out, no_template_opener=args.no_template_opener)
     print(f"wrote {args.out}", file=sys.stderr)
 
     # Auto-splice unless suppressed.

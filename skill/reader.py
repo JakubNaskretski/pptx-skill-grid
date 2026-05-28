@@ -22,6 +22,7 @@ CLI commands (use stdout JSON for machine-readability):
   python reader.py find-asset [<asset_dir>] [--kind photo] [--tags people,office]
                               [--limit 5] [--external-dir DIR]
   python reader.py preview-asset <asset_id> [--asset-dir DIR] [--external-dir DIR]
+  python reader.py opener-template-status
 
   python reader.py validate-plan <plan.json>
 
@@ -267,6 +268,39 @@ def find_asset(
         "count": len(matches),
         "broadened": broadened,
         "matches": matches,
+    }
+
+
+def opener_template_status() -> dict:
+    """Report whether a pre-rendered opening slide template is active.
+
+    Returns:
+      {
+        "enabled": bool,    # USE_TEMPLATE_OPENER constant in render.py
+        "exists": bool,     # whether the .pptx file is on disk
+        "path": str,        # absolute path the renderer looks at
+        "effective": bool,  # True iff enabled AND exists (will actually be used)
+      }
+
+    Call during outline review (Phase 2). If `effective` is True, the
+    renderer will prepend the template slide as slide 1 of every deck
+    unless the plan opts out via `use_template_opener: false`.
+    """
+    try:
+        from render import USE_TEMPLATE_OPENER, TEMPLATE_OPENER_PATH
+    except ImportError:
+        return {
+            "enabled": False, "exists": False, "path": None,
+            "effective": False,
+            "reason": "render.py not importable",
+        }
+    template_path = Path(__file__).parent / TEMPLATE_OPENER_PATH
+    exists = template_path.exists()
+    return {
+        "enabled": bool(USE_TEMPLATE_OPENER),
+        "exists": exists,
+        "path": str(template_path),
+        "effective": bool(USE_TEMPLATE_OPENER) and exists,
     }
 
 
@@ -636,6 +670,9 @@ def _cli():
     r.add_argument("--external-dir", default=None,
                    help="external raster folder (default: ../../assets-external/)")
 
+    sub.add_parser("opener-template-status",
+                   help="Report whether a pre-rendered opener template is active.")
+
     r = sub.add_parser("validate-slide")
     r.add_argument("slide", help="slide.json (a single slide spec)")
 
@@ -687,6 +724,8 @@ def _cli():
         _print_json(preview_asset(args.asset_id,
                                   asset_dir=args.asset_dir,
                                   external_dir=args.external_dir))
+    elif args.command == "opener-template-status":
+        _print_json(opener_template_status())
     elif args.command == "validate-slide":
         slide = _load_json_arg(f"@{args.slide}")
         _print_json(validate_slide(slide))
