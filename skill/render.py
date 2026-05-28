@@ -111,7 +111,10 @@ def _apply_decorations(slide, ctx: Context, slide_spec: dict, plan: dict,
     canvas_h_in = ctx.canvas_h_in
     footer_y_in = canvas_h_in * 13 / 14 + 0.06  # just below content area
 
-    # --- 1. Presentation title at header-left ---
+    # --- 1. Presentation title — footer strip, after the logo ---
+    # Logo sits at x = canvas_w * 0.04 with width ≈ 0.40". This box starts
+    # at canvas_w * 0.12 and runs up to ~canvas_w * 0.84 (page number sits
+    # at 0.85+). Same y as the logo so they share one footer line.
     if SHOW_PRESENTATION_TITLE:
         # The literal placeholder "company_name" is intentional — skip the
         # text entirely until the user replaces it with their real org name.
@@ -123,9 +126,9 @@ def _apply_decorations(slide, ctx: Context, slide_spec: dict, plan: dict,
         if parts:
             text = " · ".join(parts)
             box = slide.shapes.add_textbox(
-                Inches(canvas_w_in * 0.04),
-                Inches(0.12),
-                Inches(canvas_w_in * 0.70),
+                Inches(canvas_w_in * 0.12),
+                Inches(footer_y_in),
+                Inches(canvas_w_in * 0.72),
                 Inches(0.28),
             )
             tf = box.text_frame
@@ -282,6 +285,16 @@ def render(plan: dict, theme: dict, out_path: str,
 
     for slide_spec in plan.get("slides", []):
         slide = prs.slides.add_slide(blank_layout)
+
+        # Strip any placeholders the layout brought in. Even PowerPoint's
+        # default "Blank" master/layout pair carries title + slide-number +
+        # footer + section-index placeholders that bleed through as "Add
+        # title" / "0" / etc. underneath our content. Killing them here
+        # gives us a truly clean canvas regardless of which template (or
+        # python-pptx default) the .pptx originated from.
+        for ph in list(slide.placeholders):
+            sp = ph._element
+            sp.getparent().remove(sp)
 
         # Background first so it sits underneath everything.
         bg = slide_spec.get("background", "white")
