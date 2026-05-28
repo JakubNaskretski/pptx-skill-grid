@@ -184,17 +184,67 @@ critical ones:
 The rest (tone, must_avoid, deadline, etc.) can be addressed as you
 build, if not in discovery. Don't over-interview.
 
-## The five phases
+## The five phases — EXECUTE them, don't describe them
 
-  Phase 1 — Discovery     conversational interview (this section)
-  Phase 2 — Outline       slide-by-slide TOC (recipe + summary); 1 round
-  Phase 3 — Batch build   3 slides at a time; validate-slide each one
-  Phase 4 — Polish        validate-plan whole deck; address errors
-  Phase 5 — Render        python render.py plan.json out.pptx
-                          (auto-splices bundled assets/ if present)
+CRITICAL: At every phase you produce real files. The conversation is
+about the work, not in place of the work. When you say "I built the
+outline" or "batch 2 is ready", the corresponding JSON file must exist
+on disk. Cite its actual path. If you didn't run the command, you
+didn't do the work.
 
-Don't proceed if a transition gate isn't met (e.g. outline not approved).
-Refuse yourself and re-ask.
+Each phase has explicit artifacts. Save them to your working directory
+(typically `/tmp/` or `skill/working/`).
+
+### Phase 1 — Discovery
+- **Output:** internal mental model + optionally `brief.json` saved to disk
+- **You move on when:** you have audience, purpose, key_message, length,
+  and at least one concrete data point.
+
+### Phase 2 — Outline
+- **Compose** the outline as JSON: `[{"id": 1, "recipe": "title_only",
+  "summary": "..."}, ...]`
+- **Save it:** write to `/tmp/outline.json`
+- **Show the user** the outline (formatted as a numbered list, NOT raw JSON)
+  and cite the file path: "Outline drafted, saved to /tmp/outline.json.
+  Approve or edit?"
+- **Wait** for user approval before moving on.
+
+### Phase 3 — Batch build (3 slides at a time)
+
+For each batch:
+
+  1. **Compose** each slide as a full JSON spec (recipe + content +
+     optional params/background). See plan.schema.json for the shape.
+  2. **Save** each one: `/tmp/slide_N.json` (where N is the slide id).
+  3. **Validate** each one — run the actual command:
+       python reader.py validate-slide /tmp/slide_N.json
+     Capture the output.
+  4. **Fix errors.** If `ok: false`, revise the slide and re-validate
+     until clean.
+  5. **Append** the validated slides to a running `/tmp/plan.json`.
+  6. **Report** to the user with the actual paths:
+       "Batch 2 (slides 4-6) ready:
+          - /tmp/slide_4.json — validate-slide: ok
+          - /tmp/slide_5.json — validate-slide: ok, 1 warning (text overflow)
+          - /tmp/slide_6.json — validate-slide: ok
+        Continue?"
+  7. **Wait** for batch acceptance before next batch.
+
+### Phase 4 — Polish
+- **Save** the final assembled `/tmp/plan.json`.
+- **Run:** `python reader.py validate-plan /tmp/plan.json`. Capture output.
+- **Address errors.** Re-validate.
+- **Report:** "validate-plan: ok=true. Path: /tmp/plan.json."
+
+### Phase 5 — Render
+- **Run:** `python render.py /tmp/plan.json /tmp/out.pptx`
+  (from inside the skill/ working directory)
+- **Capture** the output path. The deck file must exist on disk.
+- **Your final deliverable** is the actual `.pptx` file. Tell the user
+  the path: "Done — final deck: /tmp/out.pptx (12 slides, …). …"
+
+Don't proceed if a transition gate isn't met (e.g. outline not approved,
+validate-slide returning errors). Refuse yourself and re-ask / re-validate.
 
 If asked "what can you do?" or "how do you work?":
 
@@ -223,6 +273,15 @@ don't memorize.
 
 ## Hard rules
 
+- **Every artifact you claim to have built must exist as a real file on
+  disk.** "Outline drafted" means you actually saved outline.json.
+  "Batch ready" means slide_N.json files exist AND were validated.
+  "Done" means out.pptx is on disk. Cite the path every time. No
+  hallucinating completion.
+- **Run the tool calls visibly.** When the platform supports it, show
+  the commands you ran (`python reader.py validate-slide …`) and their
+  outputs. Don't hide work in your reasoning trace — the user wants to
+  see that things are happening.
 - Never re-ask a question the user has already answered (even partially).
   Refine, don't repeat.
 - Max 2 questions per turn during discovery. Format on separate lines.
