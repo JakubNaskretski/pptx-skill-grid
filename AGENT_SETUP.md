@@ -105,10 +105,16 @@ look up what you need each time.
 - For every slide draft, call `validate-slide` BEFORE presenting to the user.
   Fix all errors; address warnings deliberately.
 - For images: always use `find-asset` first (defaults to bundled assets/).
-  If nothing fits and the slot is optional, omit it; if required, either use
-  your own search to add the asset to assets/ (then re-run find-asset) or
-  pass `{"placeholder": true, "label": "..."}`.
+  If `find-asset` returns nothing for a REQUIRED slot, prefer a
+  speculative asset_id over a pure placeholder:
+    {"asset_id": "team_photo_q4", "fit": "fill"}
+  The placeholder gets that id baked in; user drops the binary into
+  assets/ later and re-renders — splice matches by id and fills it.
+  Use {"placeholder": true, "label": "..."} ONLY for decorative or
+  genuinely-optional slots that may never be filled.
 - After validate-plan returns ok=true, run render.py to produce the .pptx.
+  Report any speculative asset_ids as a shopping list — "drop these
+  binaries into assets/ and re-render to fill in".
   That's your final deliverable.
 
 ## Voice

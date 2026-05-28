@@ -210,18 +210,51 @@ different asset.
 
 For every image slot:
 
-1. `python reader.py find-asset <asset_dir> --kind <kind> --tags <t1,t2>`
+1. `python reader.py find-asset --kind <kind> --tags <t1,t2>`
+   (defaults to bundled `assets/`; pass a path positionally to override).
 2. If `count == 0`, retry without tags (one broadening step). The tool
    does this for you and sets `broadened: true`.
-3. If still empty: either search the web for a candidate, save into
-   `<asset_dir>`, re-run `describe_assets.py`, then `find-asset` again;
-   or pass `{"placeholder": true, "label": "..."}` if the slot is
-   optional.
+3. If still empty: pick the right fallback (see below).
 4. Among the shortlist, pick by `description` text fit to the slide topic.
    Optionally run `check-asset-fit` to filter aspect-incompatible
    candidates.
 
 Do not scan all assets by reading sidecars one-by-one. Use `find-asset`.
+
+### When no asset exists — use a speculative `asset_id`
+
+If a slot is **required** and no matching asset exists, prefer a
+**speculative asset_id** over a pure placeholder. Invent a logical id
+based on what the slot needs:
+
+```json
+{"type": "image",
+ "grid": {...},
+ "content": {"asset_id": "team_photo_q4", "fit": "fill"}}
+```
+
+The rendered placeholder shape gets `team_photo_q4` baked into its name.
+The user drops `team_photo_q4.jpg` + `team_photo_q4.yaml` into `assets/`
+later and re-renders — the splice step matches by id and fills it in.
+No manual editing of the .pptx required.
+
+After the deck is rendered, **report the shopping list** to the user:
+
+> "Slide 7 needs `team_photo_q4.jpg`. Slide 12 needs `revenue_chart_2026.png`.
+> Drop them into `assets/` (each with a sidecar — run `describe_assets.py
+> assets/` to generate) and re-run `python render.py plan.json out.pptx`."
+
+### Pure placeholders — only for truly optional/decorative
+
+`{"placeholder": true, "label": "..."}` produces a labeled grey box but
+sets the asset_id to `none`, so the splice step CAN'T match it later.
+Use this only when:
+
+- The slot is genuinely optional and may stay a placeholder, OR
+- A decorative image where the exact binary doesn't matter
+
+For anything the user will want to fill later, use a speculative
+`asset_id` instead.
 
 ### Refining text on a slide
 
