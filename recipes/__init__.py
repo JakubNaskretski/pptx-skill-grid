@@ -20,9 +20,12 @@ from . import (
     metric_strip,
     chart_with_takeaway,
     table_full,
+    table_with_callout,
     three_up,
     quote,
     cta_closing,
+    team_strip,
+    team_grid_2x2,
 )
 
 
@@ -37,9 +40,12 @@ RECIPES = {
     "metric_strip": metric_strip.build,
     "chart_with_takeaway": chart_with_takeaway.build,
     "table_full": table_full.build,
+    "table_with_callout": table_with_callout.build,
     "three_up": three_up.build,
     "quote": quote.build,
     "cta_closing": cta_closing.build,
+    "team_strip": team_strip.build,
+    "team_grid_2x2": team_grid_2x2.build,
 }
 
 
@@ -103,9 +109,22 @@ RECIPE_SIGNATURES = {
         "use_when": "A chart plus a sentence/list of takeaways in a sidebar.",
     },
     "table_full": {
-        "content": {"title": "str (required)", "table": "table content (required)"},
+        "content": {
+            "title": "str (required)",
+            "table": "{rows, cols, has_header, data: [[...]], style?}",
+        },
         "params": {},
-        "use_when": "Title + full-width table.",
+        "use_when": "Title + full-width table. table.style: header_accent (default) | zebra_neutral | filled_accent | filled_neutral | minimal.",
+    },
+    "table_with_callout": {
+        "content": {
+            "title": "str (required)",
+            "callout_heading": "str (optional, left h2)",
+            "callout_body": "str|list[str] (optional, left bullets)",
+            "table": "{rows, cols, has_header, data: [[...]], style?}",
+        },
+        "params": {},
+        "use_when": "Title + callout text (left half) + branded table (right half). Matches the source deck's branded-table layout.",
     },
     "three_up": {
         "content": {
@@ -128,5 +147,21 @@ RECIPE_SIGNATURES = {
         },
         "params": {},
         "use_when": "Closing / next-steps / thank-you slide.",
+    },
+    "team_strip": {
+        "content": {
+            "title": "str (optional)",
+            "members": "list[{photo, name, role, bio?}] (up to 4, one row)",
+        },
+        "params": {},
+        "use_when": "Up to 4 team members across one row. Photos top, name + role + bio below each. Matches source deck's slide-5 layout.",
+    },
+    "team_grid_2x2": {
+        "content": {
+            "title": "str (optional)",
+            "members": "list[{photo, name, role, bio?}] (exactly 4)",
+        },
+        "params": {},
+        "use_when": "4 team members in 2x2 grid with photo-left, text-right. More room for bio than team_strip. Matches source deck's slide-6 layout.",
     },
 }

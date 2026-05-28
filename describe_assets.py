@@ -42,6 +42,10 @@ def _guess_kind(ext: str) -> str:
     e = ext.lower()
     if e in _RASTER_EXTS:
         return "photo"
+    if e == ".svg":
+        # SVGs in business decks are overwhelmingly icons / pictograms;
+        # user can override to 'illustration' or 'logo' in the sidecar.
+        return "icon"
     if e in _VECTOR_EXTS:
         return "vector"
     if e in _XML_EXTS:
@@ -78,6 +82,40 @@ def _raster_metrics(path: Path) -> dict:
         return {"width": None, "height": None, "aspect": None, "colors_hex": []}
 
 
+def _svg_metrics(path: Path) -> dict:
+    """Parse SVG width/height from viewBox or explicit attributes."""
+    import re
+    try:
+        text = path.read_text(errors="ignore")[:4000]
+    except Exception:
+        return {"width": None, "height": None, "aspect": None, "colors_hex": []}
+    m = re.search(r'viewBox\s*=\s*"([^"]+)"', text)
+    w = h = None
+    if m:
+        parts = m.group(1).strip().split()
+        if len(parts) >= 4:
+            try:
+                w = float(parts[2])
+                h = float(parts[3])
+            except ValueError:
+                pass
+    if w is None:
+        mw = re.search(r'\bwidth\s*=\s*"([0-9.]+)', text)
+        mh = re.search(r'\bheight\s*=\s*"([0-9.]+)', text)
+        if mw and mh:
+            try:
+                w = float(mw.group(1))
+                h = float(mh.group(1))
+            except ValueError:
+                pass
+    return {
+        "width": int(w) if w else None,
+        "height": int(h) if h else None,
+        "aspect": round(w / h, 3) if (w and h) else None,
+        "colors_hex": [],  # SVGs may use theme refs; vision LLM can fill if needed
+    }
+
+
 def _build_sidecar(binary: Path) -> dict:
     kind = _guess_kind(binary.suffix)
     base = {
@@ -88,8 +126,10 @@ def _build_sidecar(binary: Path) -> dict:
         "description": "",
         "status": "pending",
     }
-    if kind == "photo":
+    if binary.suffix.lower() in _RASTER_EXTS:
         base.update(_raster_metrics(binary))
+    elif binary.suffix.lower() == ".svg":
+        base.update(_svg_metrics(binary))
     return base
 
 

@@ -382,10 +382,71 @@ def render_chart(slide, ctx: Context, rect: dict, content: Any,
             pass
 
 
+TABLE_STYLES = {
+    # Style "header_accent": orange header band, plain body, no zebra.
+    # Matches slides 3 of the source deck. Default.
+    "header_accent": {
+        "header_bg":   "accent_primary",
+        "header_fg":   "text_inverse",
+        "body_bg_a":   None,                  # None → transparent
+        "body_bg_b":   None,
+        "body_fg":     "text_primary",
+        "header_size": 14,
+        "body_size":   12,
+    },
+    # Style "zebra_neutral": plain header, alternating grey body rows.
+    # Matches slide 4 of the source deck.
+    "zebra_neutral": {
+        "header_bg":   None,
+        "header_fg":   "text_primary",
+        "body_bg_a":   "tints.grey_30",
+        "body_bg_b":   None,
+        "body_fg":     "text_primary",
+        "header_size": 14,
+        "body_size":   12,
+    },
+    # Style "filled_accent": every cell orange. Slide 1 of source deck.
+    "filled_accent": {
+        "header_bg":   "accent_primary",
+        "header_fg":   "text_inverse",
+        "body_bg_a":   "accent_primary",
+        "body_bg_b":   "accent_primary",
+        "body_fg":     "text_inverse",
+        "header_size": 12,
+        "body_size":   11,
+    },
+    # Style "filled_neutral": every cell light grey. Slide 2 of source deck.
+    "filled_neutral": {
+        "header_bg":   "tints.grey_30",
+        "header_fg":   "text_primary",
+        "body_bg_a":   "tints.grey_30",
+        "body_bg_b":   "tints.grey_30",
+        "body_fg":     "text_primary",
+        "header_size": 12,
+        "body_size":   11,
+    },
+    # Style "minimal": no fills anywhere; relies on font weight for header.
+    # Matches slides 32-35.
+    "minimal": {
+        "header_bg":   None,
+        "header_fg":   "text_primary",
+        "body_bg_a":   None,
+        "body_bg_b":   None,
+        "body_fg":     "text_primary",
+        "header_size": 14,
+        "body_size":   12,
+    },
+}
+
+
 def render_table(slide, ctx: Context, rect: dict, content: Any,
                  style_overrides: dict | None = None):
     """table — content is {"rows": N, "cols": N, "has_header": bool,
-    "data": [[...], ...]}."""
+    "data": [[...], ...], "style": "<style_name>"}.
+
+    Available styles: header_accent (default), zebra_neutral, filled_accent,
+    filled_neutral, minimal. See TABLE_STYLES for the parameters of each.
+    """
     if not isinstance(content, dict):
         raise ValueError("table content must be a dict")
 
@@ -398,16 +459,14 @@ def render_table(slide, ctx: Context, rect: dict, content: Any,
     rows = content.get("rows", len(data))
     cols = content.get("cols", max(len(r) for r in data) if data else 1)
     has_header = content.get("has_header", True)
+    style_name = content.get("style", "header_accent")
+    style = TABLE_STYLES.get(style_name, TABLE_STYLES["header_accent"])
 
     table_shape = slide.shapes.add_table(rows, cols, left, top, w, h)
     table = table_shape.table
 
     body_font = ctx.font_name("body")
     heading_font = ctx.font_name("heading")
-    header_bg = ctx.rgb("accent_primary")
-    header_fg = ctx.rgb("text_inverse")
-    body_fg = ctx.rgb("text_primary")
-    zebra_bg = ctx.rgb("grey_90") if "tints" in ctx.theme else _hex_to_rgb("#F5F7F8")
 
     for r in range(rows):
         for c in range(cols):
@@ -422,22 +481,35 @@ def render_table(slide, ctx: Context, rect: dict, content: Any,
             p.alignment = PP_ALIGN.LEFT
             run = p.add_run()
             is_header = has_header and r == 0
+
+            if is_header:
+                fg_key = style["header_fg"]
+                size_pt = style["header_size"]
+                bg_key = style["header_bg"]
+                use_heading_font = True
+            else:
+                fg_key = style["body_fg"]
+                size_pt = style["body_size"]
+                # Alternating row fills
+                body_row_idx = r - (1 if has_header else 0)
+                bg_key = style["body_bg_a"] if body_row_idx % 2 == 0 else style["body_bg_b"]
+                use_heading_font = False
+
             _set_run(
                 run,
                 text=cell_text,
-                font=heading_font if is_header else body_font,
-                size_pt=12 if is_header else 11,
+                font=heading_font if use_heading_font else body_font,
+                size_pt=size_pt,
                 bold=is_header,
-                color_hex=("#FFFFFF" if is_header else ctx.hex("text_primary")),
+                color_hex=ctx.hex(fg_key),
             )
+
             fill = cell.fill
-            fill.solid()
-            if is_header:
-                fill.fore_color.rgb = header_bg
-            elif r % 2 == 0:
-                fill.fore_color.rgb = zebra_bg
+            if bg_key is None:
+                fill.background()
             else:
-                fill.fore_color.rgb = _hex_to_rgb("#FFFFFF")
+                fill.solid()
+                fill.fore_color.rgb = ctx.rgb(bg_key)
 
 
 def render_quote(slide, ctx: Context, rect: dict, content: Any,

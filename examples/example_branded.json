@@ -1,0 +1,158 @@
+{
+  "version": "1",
+  "deck_title": "Branded styles demo",
+  "slides": [
+    {
+      "id": 1,
+      "recipe": "title_only",
+      "content": {
+        "title": "Branded recipe demo",
+        "subtitle": "Tables (5 styles) + team layouts (2 variants)"
+      }
+    },
+    {
+      "id": 2,
+      "recipe": "table_with_callout",
+      "content": {
+        "title": "Pricing tiers — filled_accent",
+        "callout_heading": "Headline summary",
+        "callout_body": [
+          "Three tiers spanning all customer sizes",
+          "Annual commit discount applies on Pro and Enterprise",
+          "All tiers include SSO + audit logs"
+        ],
+        "table": {
+          "rows": 4, "cols": 4, "has_header": true,
+          "style": "filled_accent",
+          "data": [
+            ["Tier", "Seats", "Annual", "Monthly"],
+            ["Starter", "Up to 10", "$1,200", "$120"],
+            ["Pro", "11-100", "$8,400", "$840"],
+            ["Enterprise", "Custom", "Custom", "Custom"]
+          ]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "recipe": "table_with_callout",
+      "content": {
+        "title": "Feature matrix — filled_neutral",
+        "callout_heading": "What's included",
+        "callout_body": [
+          "Core features on all tiers",
+          "Advanced workflows on Pro+",
+          "Custom SLAs on Enterprise"
+        ],
+        "table": {
+          "rows": 4, "cols": 4, "has_header": true,
+          "style": "filled_neutral",
+          "data": [
+            ["Feature", "Starter", "Pro", "Enterprise"],
+            ["SSO", "Yes", "Yes", "Yes"],
+            ["Audit logs", "30 days", "1 year", "Custom"],
+            ["Custom SLA", "No", "No", "Yes"]
+          ]
+        }
+      }
+    },
+    {
+      "id": 4,
+      "recipe": "table_full",
+      "content": {
+        "title": "Pipeline by region — header_accent",
+        "table": {
+          "rows": 5, "cols": 4, "has_header": true,
+          "style": "header_accent",
+          "data": [
+            ["Region", "Pipeline ($M)", "Coverage", "Win rate"],
+            ["Americas", "12.4", "3.2x", "31%"],
+            ["EMEA", "7.8", "2.8x", "27%"],
+            ["APAC", "3.1", "2.1x", "24%"],
+            ["Total", "23.3", "2.9x", "28%"]
+          ]
+        }
+      }
+    },
+    {
+      "id": 5,
+      "recipe": "table_full",
+      "content": {
+        "title": "Win-rate trend — zebra_neutral",
+        "table": {
+          "rows": 6, "cols": 4, "has_header": true,
+          "style": "zebra_neutral",
+          "data": [
+            ["Quarter", "Won", "Lost", "Win rate"],
+            ["Q1", "31", "62", "33%"],
+            ["Q2", "34", "59", "37%"],
+            ["Q3", "29", "61", "32%"],
+            ["Q4", "38", "57", "40%"],
+            ["FY", "132", "239", "36%"]
+          ]
+        }
+      }
+    },
+    {
+      "id": 6,
+      "recipe": "team_strip",
+      "content": {
+        "title": "Founding team",
+        "members": [
+          {"name": "Alex Kim", "role": "CEO",
+           "bio": "Previously led platform at Stripe; ex-Apple."},
+          {"name": "Sam Patel", "role": "CTO",
+           "bio": "20 years in distributed systems; Datadog alum."},
+          {"name": "Jordan Lee", "role": "CPO",
+           "bio": "Built product at Notion and Figma."},
+          {"name": "Riley Ortiz", "role": "Head of Sales",
+           "bio": "Built EMEA + APAC at MongoDB."}
+        ]
+      }
+    },
+    {
+      "id": 7,
+      "recipe": "team_grid_2x2",
+      "content": {
+        "title": "Leadership team",
+        "members": [
+          {"name": "Alex Kim", "role": "CEO",
+           "bio": "Previously led platform at Stripe; 8 years at Apple before that."},
+          {"name": "Sam Patel", "role": "CTO",
+           "bio": "20+ years in distributed systems and database engineering. Datadog alum."},
+          {"name": "Jordan Lee", "role": "CPO",
+           "bio": "Shipped core product surfaces at Notion and Figma."},
+          {"name": "Riley Ortiz", "role": "Head of Sales",
+           "bio": "Built MongoDB's EMEA and APAC GTM organizations."}
+        ]
+      }
+    },
+    {
+      "id": 8,
+      "recipe": "table_full",
+      "content": {
+        "title": "Roadmap — minimal",
+        "table": {
+          "rows": 5, "cols": 3, "has_header": true,
+          "style": "minimal",
+          "data": [
+            ["Quarter", "Theme", "Ship"],
+            ["Q1", "Platform v2", "Unified API"],
+            ["Q2", "Self-serve", "Free tier + billing"],
+            ["Q3", "Analytics", "Saved views, alerting"],
+            ["Q4", "Enterprise", "SSO + audit + DLP"]
+          ]
+        }
+      }
+    },
+    {
+      "id": 9,
+      "recipe": "cta_closing",
+      "content": {
+        "title": "Thank you",
+        "cta": {"label": "Questions?"},
+        "contact": "hello@example.com"
+      }
+    }
+  ]
+}

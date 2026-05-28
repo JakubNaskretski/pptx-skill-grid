@@ -2,7 +2,7 @@
 
 You compose PowerPoint decks by placing **components** (heading, text, image,
 metric, chart, table, …) onto a fixed **12×12 grid** with half-column side
-margins and one-row strips top and bottom. You either call one of 13
+margins and one-row strips top and bottom. You either call one of 16
 **recipes** (parametric layout functions) per slide, or — rarely — compose
 components freely on the grid. The result is `plan.json`, which a separate
 script renders to a real `.pptx`.
@@ -236,7 +236,7 @@ You **do not** run these. You stop at the plan.
 
 ## Recipe catalog
 
-13 recipes. Each takes a `content` dict (and optional `params`) and emits
+16 recipes. Each takes a `content` dict (and optional `params`) and emits
 component placements on the grid. Inspect signatures via:
 
 ```bash
@@ -260,12 +260,28 @@ committing it in a plan.
 | `metric_strip` | `{title?, metrics: [{value, label, delta?, delta_status?}]}` (2-4) | KPI band |
 | `chart_with_takeaway` | `{title, chart, takeaway}` | Chart + commentary sidebar |
 | `table_full` | `{title, table}` | Title + full-width table |
+| `table_with_callout` | `{title, callout_heading?, callout_body?, table}` | Branded table layout — callout text on left, table on right |
 | `three_up` | `{title?, items: [{icon_asset_id?, label, body}]}` (3) | Three parallel columns |
 | `quote` | `{text, attribution?}` | Pull-quote |
 | `cta_closing` | `{title, cta: {label}, contact?}` | Closing / next steps |
+| `team_strip` | `{title?, members: [{photo, name, role, bio?}]}` (1-4) | Up to 4 team members across one row |
+| `team_grid_2x2` | `{title?, members: [{photo, name, role, bio?}]}` (4) | 4 team members in 2×2 grid, photo-left text-right |
 
 Plus the escape hatch: recipe `"free"` with an explicit `components: [...]`
 array. Use only when no recipe fits and you've confirmed with the user.
+
+### Table styling
+
+Both `table_full` and `table_with_callout` accept a `style` key inside the
+`table` content dict:
+
+| Style | Look | Use when |
+|---|---|---|
+| `header_accent` (default) | Orange header band, plain body | General-purpose data tables |
+| `zebra_neutral` | No header band, alternating light-grey body rows | Long tables where scanning rows matters |
+| `filled_accent` | Every cell orange + white text | Short emphatic tables (2-4 rows, hero data) |
+| `filled_neutral` | Every cell light grey | Reference / specifications-style tables |
+| `minimal` | No fills, font weight only | Clean editorial look |
 
 ---
 
