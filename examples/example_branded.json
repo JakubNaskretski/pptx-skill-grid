@@ -147,6 +147,42 @@
     },
     {
       "id": 9,
+      "recipe": "table_full",
+      "content": {
+        "title": "Pipeline — underline_accent",
+        "table": {
+          "rows": 5, "cols": 5, "has_header": true,
+          "style": "underline_accent",
+          "data": [
+            ["Stage", "Count", "$ value", "Avg cycle", "Conversion"],
+            ["Discovery", "42", "$3.1M", "14d", "62%"],
+            ["Qualified", "26", "$2.4M", "23d", "54%"],
+            ["Proposal", "14", "$1.8M", "41d", "48%"],
+            ["Closed-Won", "7", "$0.9M", "63d", "—"]
+          ]
+        }
+      }
+    },
+    {
+      "id": 10,
+      "recipe": "table_full",
+      "content": {
+        "title": "Pipeline — underline_neutral",
+        "table": {
+          "rows": 5, "cols": 5, "has_header": true,
+          "style": "underline_neutral",
+          "data": [
+            ["Stage", "Count", "$ value", "Avg cycle", "Conversion"],
+            ["Discovery", "42", "$3.1M", "14d", "62%"],
+            ["Qualified", "26", "$2.4M", "23d", "54%"],
+            ["Proposal", "14", "$1.8M", "41d", "48%"],
+            ["Closed-Won", "7", "$0.9M", "63d", "—"]
+          ]
+        }
+      }
+    },
+    {
+      "id": 11,
       "recipe": "cta_closing",
       "content": {
         "title": "Thank you",

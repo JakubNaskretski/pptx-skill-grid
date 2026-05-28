@@ -486,6 +486,37 @@ TABLE_STYLES = {
         "header_size": 14,
         "body_size":   12,
     },
+    # Slides 33-34 family (reconstructed from screenshots since the source
+    # XML inherits everything from a PowerPoint built-in style):
+    # Editorial look — bold header in accent color with a single accent
+    # underline below it; body rows separated by very thin grey dividers.
+    "underline_accent": {
+        "header_bg":   None,
+        "header_fg":   "accent_primary",     # orange bold header text
+        "body_bg":     None,
+        "body_fg":     "text_primary",
+        "first_col_bg": None,
+        "first_col_fg": None,
+        "header_size": 14,
+        "body_size":   12,
+        "header_underline":     "accent_primary",  # orange line under header
+        "row_divider_filled":   None,
+        "row_divider_unfilled": "tints.grey_60",   # very subtle body dividers
+    },
+    # Same shape as underline_accent but neutral (black) header + black line.
+    "underline_neutral": {
+        "header_bg":   None,
+        "header_fg":   "text_primary",       # black bold header text
+        "body_bg":     None,
+        "body_fg":     "text_primary",
+        "first_col_bg": None,
+        "first_col_fg": None,
+        "header_size": 14,
+        "body_size":   12,
+        "header_underline":     "text_primary",   # black line under header
+        "row_divider_filled":   None,
+        "row_divider_unfilled": "tints.grey_60",
+    },
 }
 
 
@@ -618,11 +649,23 @@ def render_table(slide, ctx: Context, rect: dict, content: Any,
                 fill.fore_color.rgb = ctx.rgb(bg_key)
                 cell_was_filled[r][c] = True
 
-    # Per-cell row dividers (filled_accent / filled_neutral pattern).
+    # Header underline (independent of row dividers — used by editorial
+    # styles where the header has no bg fill but gets a colored underline).
+    header_underline = style.get("header_underline")
+    underline_applied_to_header = False
+    if header_underline and has_header:
+        for c in range(cols):
+            _set_cell_bottom_border(table.cell(0, c),
+                                    ctx.hex(header_underline), width_pt=1.25)
+        underline_applied_to_header = True
+
+    # Per-cell row dividers (filled_accent / filled_neutral / header_accent /
+    # underline_* patterns). Skip row 0 if header_underline already painted it.
     div_filled = style.get("row_divider_filled")
     div_unfilled = style.get("row_divider_unfilled")
     if div_filled or div_unfilled:
-        for r in range(rows):
+        start_r = 1 if underline_applied_to_header else 0
+        for r in range(start_r, rows):
             is_last = (r == rows - 1)
             if is_last:
                 continue  # no border below the last row

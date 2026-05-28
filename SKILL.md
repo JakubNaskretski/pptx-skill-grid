@@ -311,6 +311,18 @@ committing it in a plan.
 Plus the escape hatch: recipe `"free"` with an explicit `components: [...]`
 array. Use only when no recipe fits and you've confirmed with the user.
 
+### Table styles (`table.style` field)
+
+| Style | Look | Use when |
+|---|---|---|
+| `header_accent` (default) | Orange header band + subtle grey body row dividers | General-purpose data tables |
+| `zebra_neutral` | No header band, alternating light-grey body rows | Long tables where scanning rows matters |
+| `filled_accent` | First column orange (all rows) + per-row dividers | Reference / pricing-tier tables; first col is the row label |
+| `filled_neutral` | First column light grey + per-row dividers | Same as above but quieter |
+| `minimal` | Just bold header, no fills, no dividers | Clean editorial; minimal visual chrome |
+| `underline_accent` | Orange-text bold header + orange underline + subtle grey body dividers | Editorial accent — when you want orange emphasis without a heavy band |
+| `underline_neutral` | Black bold header + black underline + subtle grey body dividers | Editorial neutral — most "designed" feel; no accent color on the table |
+
 ### Slide backgrounds
 
 Each slide spec accepts an optional `background` enum:
