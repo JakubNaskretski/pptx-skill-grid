@@ -1,24 +1,27 @@
 """splice_assets.py — replace ASSET_PLACEHOLDER shapes with real images.
 
 Walks a .pptx, finds each shape whose name starts with `ASSET_PLACEHOLDER:`,
-parses the asset_id + fit_mode, looks up the binary in the asset folder,
-and inserts it at the placeholder's geometry.
+parses the asset_id + fit_mode, looks up the binary, and inserts it at the
+placeholder's geometry.
+
+Asset binary resolution follows the two-folder layout:
+
+  - .svg   → expected in skill/assets/   (lives with the yaml)
+  - raster → expected in EXTERNAL_ASSETS_DIR (outside the skill; ../assets-external
+             by default). Falls back to skill/assets/ for the logo case.
+
+SVG embedding uses native vector + PNG fallback (asvg:svgBlip extension).
+PowerPoint 2016+ renders the actual vector; older viewers see the PNG.
 
 Usage:
-  python splice_assets.py in.pptx [--assets DIR] -o out.pptx
-
-If --assets is omitted, defaults to the skill's bundled assets/ folder.
-Missing assets and unsupported types (SVG/XML) leave the placeholder in place
-and append to <out>.warnings.txt.
-
-Most users won't call this directly — render.py auto-splices when sidecars
-are present in the assets folder. Use this when you want to re-splice an
-existing .pptx against a different asset folder.
+  python splice_assets.py in.pptx -o out.pptx
+                          [--skill-assets DIR] [--external-assets DIR]
 """
 
 from __future__ import annotations
 
 import argparse
+import io
 import sys
 from pathlib import Path
 
@@ -27,19 +30,42 @@ from PIL import Image
 from pptx import Presentation
 from pptx.util import Emu
 
+# cairosvg is only needed when there are SVG assets. Import is lazy so the
+# splice path works for raster-only decks even when cairosvg isn't installed.
+try:
+    import cairosvg  # type: ignore
+    _HAS_CAIROSVG = True
+except ImportError:
+    _HAS_CAIROSVG = False
+
+
 PLACEHOLDER_PREFIX = "ASSET_PLACEHOLDER:"
 
 _SUPPORTED_RASTER = {".jpg", ".jpeg", ".png", ".gif", ".bmp", ".tiff", ".webp"}
+_SUPPORTED_VECTOR = {".svg"}
+
+# Path resolution defaults
+DEFAULT_SKILL_ASSETS = Path(__file__).parent / "assets"
+DEFAULT_EXTERNAL_ASSETS = Path(__file__).parent.parent.parent / "assets-external"
+
+# OOXML namespaces for native SVG embedding.
+_NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main"
+_NS_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+_NS_ASVG = "http://schemas.microsoft.com/office/drawing/2016/SVG/main"
+_SVG_EXT_URI = "{96DAC541-7B7A-43D3-8B79-37D633B846F1}"
 
 
-def _read_asset_index(asset_dir: Path) -> dict[str, dict]:
-    """Build id → sidecar dict from *.yaml files in asset_dir.
+# ---------- asset index ----------
 
-    Each entry also has `_abs_path` for the binary, resolved from the
-    yaml's `file:` field (or by matching the yaml stem to a binary).
+
+def _read_asset_index(skill_assets_dir: Path) -> dict[str, dict]:
+    """Build {asset_id → sidecar dict} from *.yaml files in skill_assets_dir.
+
+    Does NOT pre-resolve binary paths — that's done at splice time per asset,
+    based on file extension (SVG → skill, raster → external).
     """
-    index = {}
-    for y in asset_dir.glob("*.yaml"):
+    index: dict[str, dict] = {}
+    for y in sorted(skill_assets_dir.glob("*.yaml")):
         if y.name in {"theme.yaml", "asset_tag_vocab.yaml"}:
             continue
         try:
@@ -48,20 +74,38 @@ def _read_asset_index(asset_dir: Path) -> dict[str, dict]:
         except yaml.YAMLError:
             continue
         asset_id = data.get("id") or y.stem
-        file_field = data.get("file")
-        if file_field:
-            abs_path = (asset_dir / file_field).resolve()
-        else:
-            # Try to match by stem
-            abs_path = None
-            for ext in _SUPPORTED_RASTER | {".svg", ".xml"}:
-                candidate = asset_dir / f"{y.stem}{ext}"
-                if candidate.exists():
-                    abs_path = candidate.resolve()
-                    break
-        data["_abs_path"] = str(abs_path) if abs_path else None
         index[asset_id] = data
     return index
+
+
+def _resolve_binary_path(
+    asset: dict,
+    skill_assets_dir: Path,
+    external_dir: Path | None,
+) -> Path | None:
+    """Locate the binary for an asset entry.
+
+    Lookup order:
+      - .svg  → skill_assets_dir/<file>
+      - raster → external_dir/<file>, falling back to skill_assets_dir/<file>
+                 (the fallback covers the logo case, where a raster lives
+                  inside the skill rather than the external folder).
+    """
+    file = asset.get("file")
+    if not file:
+        return None
+    ext = Path(file).suffix.lower()
+    skill_path = skill_assets_dir / file
+    if ext in _SUPPORTED_VECTOR:
+        return skill_path if skill_path.exists() else None
+    if external_dir:
+        ext_path = external_dir / file
+        if ext_path.exists():
+            return ext_path
+    return skill_path if skill_path.exists() else None
+
+
+# ---------- placeholder parsing ----------
 
 
 def _parse_placeholder_name(name: str) -> tuple[str, str] | None:
@@ -74,27 +118,124 @@ def _parse_placeholder_name(name: str) -> tuple[str, str] | None:
     return asset_id, fit_mode
 
 
+# ---------- geometry helpers ----------
+
+
 def _compute_crop_for_fill(slot_w: int, slot_h: int, img_w: int, img_h: int) -> dict:
-    """Return python-pptx crop fractions (0..1) to center-crop image to slot."""
+    """Crop fractions (0..1) that center-crop an image to fill a slot."""
     if img_w == 0 or img_h == 0:
         return {"left": 0.0, "right": 0.0, "top": 0.0, "bottom": 0.0}
     slot_aspect = slot_w / slot_h
     img_aspect = img_w / img_h
     if img_aspect > slot_aspect:
-        # Crop sides
         crop_total = 1 - slot_aspect / img_aspect
         side = crop_total / 2
         return {"left": side, "right": side, "top": 0.0, "bottom": 0.0}
-    elif img_aspect < slot_aspect:
-        # Crop top/bottom
+    if img_aspect < slot_aspect:
         crop_total = 1 - img_aspect / slot_aspect
         side = crop_total / 2
         return {"left": 0.0, "right": 0.0, "top": side, "bottom": side}
+    return {"left": 0.0, "right": 0.0, "top": 0.0, "bottom": 0.0}
+
+
+def _letterbox_rect(slot_w: int, slot_h: int, img_w: int, img_h: int) -> tuple[int, int, int, int]:
+    """Center-letterbox: return (offset_x, offset_y, new_w, new_h) so an
+    image of (img_w, img_h) fits inside (slot_w, slot_h) at preserved aspect.
+    """
+    if not (img_w and img_h):
+        return 0, 0, slot_w, slot_h
+    slot_aspect = slot_w / slot_h
+    img_aspect = img_w / img_h
+    if img_aspect > slot_aspect:
+        new_w = slot_w
+        new_h = int(slot_w / img_aspect)
     else:
-        return {"left": 0.0, "right": 0.0, "top": 0.0, "bottom": 0.0}
+        new_h = slot_h
+        new_w = int(slot_h * img_aspect)
+    return (slot_w - new_w) // 2, (slot_h - new_h) // 2, new_w, new_h
 
 
-def _splice_slide(slide, asset_index: dict, warnings: list) -> None:
+# ---------- SVG: native vector embed ----------
+
+
+def _rasterize_svg_to_png(svg_path: Path, target_w_px: int = 2048) -> bytes:
+    """Render an SVG to PNG bytes for the embedded fallback.
+
+    The fallback is what PowerPoint <2016 (and any viewer that doesn't
+    recognize the asvg:svgBlip extension) will display. 2048px wide is
+    plenty for any reasonable zoom.
+    """
+    if not _HAS_CAIROSVG:
+        raise RuntimeError(
+            "SVG embed requires cairosvg. Install with: pip install cairosvg"
+        )
+    buf = io.BytesIO()
+    cairosvg.svg2png(url=str(svg_path), output_width=target_w_px, write_to=buf)
+    return buf.getvalue()
+
+
+def _embed_svg_native(slide, svg_path: Path, left, top, width, height):
+    """Add a picture shape that renders as native SVG (PowerPoint 2016+)
+    with a PNG fallback. Returns the python-pptx Picture shape.
+
+    Mechanism: add the PNG fallback via the normal add_picture path
+    (python-pptx writes /ppt/media/imageN.png and an image relationship),
+    then graft in:
+      - A second image part with the raw SVG bytes and content_type
+        "image/svg+xml" (relate it to the slide → get a second rId).
+      - An <a:extLst><a:ext uri="..."><asvg:svgBlip r:embed="rIdSvg"/></a:ext>
+        block inside the picture's <a:blip>.
+    """
+    from lxml import etree
+    from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+    from pptx.opc.packuri import PackURI
+    from pptx.parts.image import ImagePart
+
+    # 1. Rasterize for the PNG fallback.
+    png_bytes = _rasterize_svg_to_png(svg_path)
+
+    # 2. Add the PNG normally — python-pptx handles content type + rel.
+    pic = slide.shapes.add_picture(
+        io.BytesIO(png_bytes), left, top, width=width, height=height,
+    )
+
+    # 3. Create an ImagePart for the SVG itself.
+    svg_bytes = svg_path.read_bytes()
+    package = slide.part.package
+    used_partnames = {p.partname for p in package.iter_parts()}
+    n = 1
+    while True:
+        partname = PackURI(f"/ppt/media/image_svg_{n}.svg")
+        if partname not in used_partnames:
+            break
+        n += 1
+    svg_part = ImagePart(partname, "image/svg+xml", svg_bytes, package)
+
+    # 4. Relate slide → SVG part. python-pptx tracks the rel for save.
+    rId_svg = slide.part.relate_to(svg_part, RT.IMAGE)
+
+    # 5. Inject <a:extLst><a:ext uri="..."><asvg:svgBlip r:embed=...></...>
+    #    into the picture's <a:blip>.
+    blip = pic._element.find(f".//{{{_NS_A}}}blip")
+    if blip is not None:
+        extLst = etree.SubElement(blip, f"{{{_NS_A}}}extLst")
+        ext = etree.SubElement(extLst, f"{{{_NS_A}}}ext", uri=_SVG_EXT_URI)
+        svg_blip = etree.SubElement(ext, f"{{{_NS_ASVG}}}svgBlip")
+        svg_blip.set(f"{{{_NS_R}}}embed", rId_svg)
+
+    return pic
+
+
+# ---------- per-slide splice ----------
+
+
+def _splice_slide(
+    slide,
+    asset_index: dict,
+    skill_assets_dir: Path,
+    external_dir: Path | None,
+    warnings: list,
+) -> None:
     """Walk shapes in a slide and replace placeholders with pictures."""
     to_remove = []
     to_add = []
@@ -105,87 +246,126 @@ def _splice_slide(slide, asset_index: dict, warnings: list) -> None:
             continue
         asset_id, fit_mode = parsed
         if asset_id == "none":
-            continue  # legitimate placeholder, leave in place
+            continue  # legitimate "no asset" placeholder, leave in place
 
         asset = asset_index.get(asset_id)
-        if not asset or not asset.get("_abs_path"):
+        if not asset:
             warnings.append(
                 f"missing asset id='{asset_id}' on slide {slide.slide_id}; "
                 f"placeholder retained."
             )
             continue
 
-        abs_path = Path(asset["_abs_path"])
-        if abs_path.suffix.lower() not in _SUPPORTED_RASTER:
+        abs_path = _resolve_binary_path(asset, skill_assets_dir, external_dir)
+        if not abs_path:
             warnings.append(
-                f"unsupported asset format for '{asset_id}': {abs_path.suffix}; "
+                f"binary not found for '{asset_id}' (file={asset.get('file')}, "
+                f"checked skill_assets={skill_assets_dir} and "
+                f"external={external_dir}); placeholder retained."
+            )
+            continue
+
+        suffix = abs_path.suffix.lower()
+        if suffix in _SUPPORTED_VECTOR and not _HAS_CAIROSVG:
+            warnings.append(
+                f"SVG asset '{asset_id}' requires cairosvg "
+                f"(pip install cairosvg); placeholder retained."
+            )
+            continue
+        if suffix not in _SUPPORTED_RASTER and suffix not in _SUPPORTED_VECTOR:
+            warnings.append(
+                f"unsupported format for '{asset_id}': {suffix}; "
                 f"placeholder retained."
             )
             continue
 
-        left, top = shape.left, shape.top
-        w, h = shape.width, shape.height
         to_remove.append(shape)
         to_add.append({
-            "path": str(abs_path),
-            "left": left, "top": top, "width": w, "height": h,
+            "asset": asset,
+            "path": abs_path,
+            "left": shape.left, "top": shape.top,
+            "width": shape.width, "height": shape.height,
             "fit_mode": fit_mode,
         })
 
-    # Remove placeholders
     for shape in to_remove:
         sp = shape._element
         sp.getparent().remove(sp)
 
-    # Add pictures
     for spec in to_add:
+        _insert_asset(slide, spec)
+
+
+def _insert_asset(slide, spec: dict) -> None:
+    """Place one asset at the spec's geometry, applying fit_mode."""
+    abs_path = spec["path"]
+    suffix = abs_path.suffix.lower()
+    is_svg = suffix in _SUPPORTED_VECTOR
+    left, top = spec["left"], spec["top"]
+    w, h = spec["width"], spec["height"]
+    fit_mode = spec["fit_mode"]
+
+    # Intrinsic dims: from yaml for SVG (PIL can't read it), from PIL for raster.
+    if is_svg:
+        asset = spec["asset"]
+        img_w = asset.get("width") or 0
+        img_h = asset.get("height") or 0
+    else:
         try:
-            img = Image.open(spec["path"])
-            img_w, img_h = img.size
+            with Image.open(abs_path) as img:
+                img_w, img_h = img.size
         except Exception:
-            img_w, img_h = (0, 0)
+            img_w, img_h = 0, 0
 
-        if spec["fit_mode"] == "fill":
+    if fit_mode == "fill":
+        if is_svg:
+            pic = _embed_svg_native(slide, abs_path, left, top, w, h)
+        else:
             pic = slide.shapes.add_picture(
-                spec["path"], spec["left"], spec["top"],
-                width=spec["width"], height=spec["height"],
+                str(abs_path), left, top, width=w, height=h,
             )
-            crop = _compute_crop_for_fill(spec["width"], spec["height"], img_w, img_h)
-            pic.crop_left = crop["left"]
-            pic.crop_right = crop["right"]
-            pic.crop_top = crop["top"]
-            pic.crop_bottom = crop["bottom"]
-        else:  # contain — letterbox
-            if img_w and img_h:
-                slot_aspect = spec["width"] / spec["height"]
-                img_aspect = img_w / img_h
-                if img_aspect > slot_aspect:
-                    new_w = spec["width"]
-                    new_h = int(new_w / img_aspect)
-                else:
-                    new_h = spec["height"]
-                    new_w = int(new_h * img_aspect)
-                offset_x = (spec["width"] - new_w) // 2
-                offset_y = (spec["height"] - new_h) // 2
-                slide.shapes.add_picture(
-                    spec["path"],
-                    spec["left"] + offset_x,
-                    spec["top"] + offset_y,
-                    width=new_w, height=new_h,
-                )
-            else:
-                slide.shapes.add_picture(
-                    spec["path"], spec["left"], spec["top"],
-                    width=spec["width"], height=spec["height"],
-                )
+        crop = _compute_crop_for_fill(w, h, img_w, img_h)
+        pic.crop_left = crop["left"]
+        pic.crop_right = crop["right"]
+        pic.crop_top = crop["top"]
+        pic.crop_bottom = crop["bottom"]
+        return
+
+    # "contain" — letterbox preserving aspect, centered in slot.
+    ox, oy, new_w, new_h = _letterbox_rect(w, h, img_w, img_h)
+    if is_svg:
+        _embed_svg_native(slide, abs_path, left + ox, top + oy, new_w, new_h)
+    else:
+        slide.shapes.add_picture(
+            str(abs_path), left + ox, top + oy, width=new_w, height=new_h,
+        )
 
 
-def splice(in_path: str, asset_dir: str, out_path: str) -> list[str]:
+# ---------- top-level splice ----------
+
+
+def splice(
+    in_path: str,
+    out_path: str,
+    skill_assets_dir: str | Path | None = None,
+    external_assets_dir: str | Path | None = None,
+) -> list[str]:
+    """Replace every ASSET_PLACEHOLDER in in_path with real binaries.
+
+    skill_assets_dir defaults to the bundled assets/ folder (where SVGs and
+    sidecar yamls live). external_assets_dir defaults to ../assets-external
+    (where raster photos live, outside the skill).
+    """
+    skill_assets_dir = Path(skill_assets_dir or DEFAULT_SKILL_ASSETS)
+    external_dir = Path(external_assets_dir) if external_assets_dir else DEFAULT_EXTERNAL_ASSETS
+    if not external_dir.exists():
+        external_dir = None  # raster lookups will fall back to skill_assets_dir
+
     prs = Presentation(in_path)
-    asset_index = _read_asset_index(Path(asset_dir))
+    asset_index = _read_asset_index(skill_assets_dir)
     warnings: list[str] = []
     for slide in prs.slides:
-        _splice_slide(slide, asset_index, warnings)
+        _splice_slide(slide, asset_index, skill_assets_dir, external_dir, warnings)
     prs.save(out_path)
 
     if warnings:
@@ -195,20 +375,26 @@ def splice(in_path: str, asset_dir: str, out_path: str) -> list[str]:
     return warnings
 
 
-DEFAULT_ASSETS_DIR = Path(__file__).parent / "assets"
+# ---------- CLI ----------
 
 
 def _cli():
     p = argparse.ArgumentParser(prog="splice_assets")
     p.add_argument("in_pptx")
-    p.add_argument("--assets", default=None,
-                   help="asset directory (default: bundled assets/)")
     p.add_argument("-o", "--out", required=True, help="output .pptx path")
+    p.add_argument("--skill-assets", default=None,
+                   help="dir containing sidecar yamls + SVG binaries "
+                        "(default: bundled assets/)")
+    p.add_argument("--external-assets", default=None,
+                   help="dir containing raster photo binaries "
+                        "(default: ../assets-external/)")
     args = p.parse_args()
-    if args.assets is None:
-        args.assets = str(DEFAULT_ASSETS_DIR)
 
-    warnings = splice(args.in_pptx, args.assets, args.out)
+    warnings = splice(
+        args.in_pptx, args.out,
+        skill_assets_dir=args.skill_assets,
+        external_assets_dir=args.external_assets,
+    )
     print(f"wrote {args.out}", file=sys.stderr)
     if warnings:
         print(f"{len(warnings)} warning(s) — see {args.out}.warnings.txt",

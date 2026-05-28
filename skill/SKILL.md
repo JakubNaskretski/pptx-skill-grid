@@ -217,9 +217,34 @@ For every image slot:
    (The tool also auto-broadens without tags on its own and reports
    `broadened: true` when it does so.)
 3. If nothing matches after a few queries, pick a fallback (see below).
-4. Among the shortlist, pick by `description` text fit to the slide topic.
-   Optionally run `check-asset-fit` to filter aspect-incompatible
-   candidates.
+4. **For pictograms (SVG matches), preview before committing.** SVG
+   binaries are tiny text files inside `skill/assets/`. Each match has
+   `abs_path`; Read that file directly to see the actual shape —
+   descriptions like "thin arrow" vs "bold arrow" are ambiguous and
+   visual fit matters for icons. For raster photo matches, descriptions
+   and tags are all you get — binaries live outside the skill and are
+   not previewable. (See `preview-asset` below.)
+5. **Match the grid slot to the asset's aspect.** Each yaml has
+   `recommended_slot: {col_span, row_span}` precomputed so the slot
+   aspect matches the asset's aspect. Use it as your default — scale
+   both spans up/down proportionally for hero vs compact usage.
+   Slots that don't match the asset's aspect will either crop
+   (`fit: "fill"`) or letterbox (`fit: "contain"`).
+6. Run `check-asset-fit` on the chosen pairing if you want to be sure.
+
+#### preview-asset
+
+When you need to disambiguate SVG candidates:
+
+```bash
+python reader.py preview-asset <asset_id>
+```
+
+- SVG → `{available: true, abs_path: "..."}`. Read the `abs_path` as a
+  plain text file — the XML shows the shape.
+- Raster → `{available: false, reason: "..."}`. Use the yaml description.
+
+Don't call this for every match — just for SVG ties or ambiguous picks.
 
 Do not scan all assets by reading sidecars one-by-one. Use `find-asset`.
 
@@ -507,8 +532,9 @@ python reader.py deck-flow plan.json
 python reader.py chart-sanity --content '{"type":"pie","categories":[…],"series":[…]}'
 
 # Asset discovery
-python reader.py read-assets /path/to/assets
-python reader.py find-asset /path/to/assets --kind photo --tags people,office --limit 5
+python reader.py read-assets [<asset_dir>] [--external-dir DIR]
+python reader.py find-asset [<asset_dir>] --kind photo --tags people,office --limit 5
+python reader.py preview-asset <asset_id>     # SVG → abs_path; raster → not available
 
 # Full validation
 python reader.py validate-plan plan.json
@@ -521,27 +547,45 @@ returns errors, you have work to do.
 
 ## Asset workflow
 
-Assets live in the skill's bundled `assets/` folder by default. Each
-binary has a sidecar YAML next to it:
+Assets live in **two folders by design**:
 
 ```
-assets/
-├── hero_team.jpg
-├── hero_team.yaml         ← sidecar (id, kind, dims, tags, description)
-├── pictogram_xx.svg
-├── pictogram_xx.yaml
+skill/assets/                       ← bundled with the skill
+├── hero_team.yaml                  ← sidecar for a photo
+├── pictogram_arrow.svg             ← SVG binary (small, ships in-place)
+├── pictogram_arrow.yaml
+└── …
+
+../assets-external/                 ← outside the skill (private + heavy)
+├── hero_team.jpg                   ← raster photo binary
+├── leadership_offsite.png
 └── …
 ```
+
+`describe_assets.py` routes by file extension at ingest time — SVGs are
+moved into `skill/assets/`, raster binaries stay in the external folder
+with only their yaml landing in `skill/assets/`. You never deal with the
+two-folder split directly: query `find-asset`, get matches with
+everything you need, reference asset_ids in plans.
+
+Each yaml carries:
+
+- `id`, `kind`, `description`, `tags` — what you search by.
+- `width`, `height`, `aspect` — intrinsic dims of the binary.
+- `recommended_slot: {col_span, row_span}` — precomputed so the grid
+  slot aspect matches the asset's aspect (square pictogram → 3×6 cells,
+  landscape photo → 4×5 cells, portrait → 2×6, wide banner → 6×4).
+  Use as a default; scale both spans proportionally for hero/compact.
+- `abs_path` — for SVG, points inside `skill/assets/` (readable as text
+  via `preview-asset`); for raster, points to the external folder
+  (not directly readable from the agent's sandbox).
 
 You discover assets via:
 
 ```bash
 python reader.py find-asset --kind photo --tags people,office
+python reader.py preview-asset <asset_id>     # only for SVG disambiguation
 ```
-
-No `<asset_dir>` argument needed — defaults to `./assets/`. To search a
-non-bundled folder, pass the path positionally:
-`python reader.py find-asset /path/to/external/assets --kind photo`.
 
 You never read sidecar files by hand.
 
@@ -551,7 +595,14 @@ When you reference an asset in a plan, use its `id`:
 {"type": "image", "grid": {…}, "content": {"asset_id": "hero_team", "fit": "fill"}}
 ```
 
-`render.py` auto-splices the binaries in if they're present in `assets/`.
+`render.py` auto-splices on save:
+
+- **SVG** → embedded as **native vector** in the .pptx
+  (PowerPoint 2016+ renders as vector; older viewers see a PNG fallback).
+  Crisp at any zoom — prefer SVG for any icon, logo, or simple symbol.
+- **Raster** → embedded as a normal picture, with crop or letterbox
+  per `fit` mode.
+
 You don't need to think about splicing — it's handled.
 
 ---

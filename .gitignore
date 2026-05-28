@@ -1,5 +1,16 @@
-# Private organization config — never commit
-skill/private_config.yaml
+# Asset binaries — never commit (sidecar .yaml files are tracked).
+# SVGs live inside skill/assets/ but their binary content stays private.
+# Raster binaries live OUTSIDE the skill in ../assets-external/ and are
+# never near the repo anyway, but we add a safety net here for the case
+# where someone accidentally drops one into skill/assets/.
+skill/assets/*.svg
+skill/assets/*.png
+skill/assets/*.jpg
+skill/assets/*.jpeg
+skill/assets/*.webp
+skill/assets/*.gif
+skill/assets/*.tiff
+skill/assets/*.bmp
 
 __pycache__/
 *.pyc

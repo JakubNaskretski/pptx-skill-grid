@@ -18,8 +18,10 @@ CLI commands (use stdout JSON for machine-readability):
   python reader.py deck-flow <plan.json>
   python reader.py chart-sanity --content '<json>'
 
-  python reader.py read-assets <asset_dir>
-  python reader.py find-asset <asset_dir> [--kind photo] [--tags people,office] [--limit 5]
+  python reader.py read-assets [<asset_dir>] [--external-dir DIR]
+  python reader.py find-asset [<asset_dir>] [--kind photo] [--tags people,office]
+                              [--limit 5] [--external-dir DIR]
+  python reader.py preview-asset <asset_id> [--asset-dir DIR] [--external-dir DIR]
 
   python reader.py validate-plan <plan.json>
 
@@ -53,6 +55,10 @@ from toolbelt import (
 
 THEME_PATH = Path(__file__).parent / "theme.yaml"
 DEFAULT_ASSETS_DIR = Path(__file__).parent / "assets"
+# External photo folder — sibling of the repo root by convention. Holds raster
+# binaries (jpg/png) that are too heavy to ship inside the skill. SVGs live in
+# DEFAULT_ASSETS_DIR.
+DEFAULT_EXTERNAL_ASSETS_DIR = Path(__file__).parent.parent.parent / "assets-external"
 
 
 # ---------- helpers ----------
@@ -164,21 +170,33 @@ def chart_sanity(content: dict) -> dict:
 
 
 _ASSET_BINARY_SUFFIXES = {".jpg", ".jpeg", ".png", ".svg", ".gif", ".webp"}
+_VECTOR_SUFFIXES = {".svg"}
 
 
-def read_assets(asset_dir: str | None = None) -> list[dict]:
-    """Walk asset_dir, return list of asset summaries from sidecar YAMLs.
+def read_assets(
+    asset_dir: str | None = None,
+    external_dir: str | None = None,
+) -> list[dict]:
+    """Walk `asset_dir`, return parsed sidecar yamls.
 
-    A sidecar is a file `<id>.yaml` next to the binary. Returns the parsed
-    YAML for each, with id defaulting to the filename stem if missing.
+    Two-folder layout:
+      - asset_dir (default: skill/assets/) holds sidecar yamls + SVG binaries.
+      - external_dir (default: ../../assets-external/) holds raster photo
+        binaries. Raster yamls live in asset_dir but the binary is resolved
+        against external_dir.
 
-    If `asset_dir` is None, defaults to the skill's bundled assets/ folder.
+    Each returned entry includes `abs_path` — the resolved location of the
+    binary. For raster files we don't check existence here (the binary may
+    only live on the user's machine, not in the sandbox). Use preview_asset
+    for an actual existence check.
     """
     if asset_dir is None:
         asset_dir = str(DEFAULT_ASSETS_DIR)
     root = Path(asset_dir)
     if not root.exists() or not root.is_dir():
         return []
+    ext_root = Path(external_dir) if external_dir else DEFAULT_EXTERNAL_ASSETS_DIR
+
     out = []
     for yaml_path in sorted(root.glob("*.yaml")):
         if yaml_path.name in {"theme.yaml", "asset_tag_vocab.yaml"}:
@@ -190,9 +208,24 @@ def read_assets(asset_dir: str | None = None) -> list[dict]:
             continue
         if "id" not in data:
             data["id"] = yaml_path.stem
-        # Resolve absolute file path
-        if "file" in data and not Path(data["file"]).is_absolute():
-            data["abs_path"] = str((root / data["file"]).resolve())
+        file = data.get("file")
+        if file and not Path(file).is_absolute():
+            ext = Path(file).suffix.lower()
+            if ext in _VECTOR_SUFFIXES:
+                data["abs_path"] = str((root / file).resolve())
+            else:
+                # Raster: prefer external dir; fall back to skill assets dir
+                # so the logo case (raster inside the skill) still resolves.
+                ext_path = ext_root / file
+                skill_path = root / file
+                if ext_path.exists():
+                    data["abs_path"] = str(ext_path.resolve())
+                elif skill_path.exists():
+                    data["abs_path"] = str(skill_path.resolve())
+                else:
+                    # Binary missing on this machine — return the expected
+                    # external location so the user can see where to drop it.
+                    data["abs_path"] = str(ext_path.resolve())
         out.append(data)
     return out
 
@@ -202,13 +235,14 @@ def find_asset(
     kind: str | None = None,
     tags: list[str] | None = None,
     limit: int = 10,
+    external_dir: str | None = None,
 ) -> dict:
     """Filter assets in `asset_dir` by kind + tags (AND). Returns up to `limit`.
 
     Broadening: if tags filter yields zero, retry without tags (one step only).
     If `asset_dir` is None, scans the skill's bundled assets/ folder.
     """
-    assets = read_assets(asset_dir)
+    assets = read_assets(asset_dir, external_dir=external_dir)
     matches = []
     for a in assets:
         if kind and a.get("kind") != kind:
@@ -233,6 +267,54 @@ def find_asset(
         "count": len(matches),
         "broadened": broadened,
         "matches": matches,
+    }
+
+
+def preview_asset(
+    asset_id: str,
+    asset_dir: str | None = None,
+    external_dir: str | None = None,
+) -> dict:
+    """Return whether/how to preview an asset visually.
+
+    For SVG matches: the binary lives inside the skill (`skill/assets/`) and
+    is plain XML text — agent should Read `abs_path` to see the actual shape
+    before committing.
+
+    For raster matches: binaries live outside the skill in the external photo
+    folder. They're not directly visible to the agent (and often too heavy
+    even if they were) — pick by `description` / `tags` from find-asset.
+    """
+    for a in read_assets(asset_dir, external_dir=external_dir):
+        if a.get("id") != asset_id:
+            continue
+        file = a.get("file") or ""
+        ext = Path(file).suffix.lower()
+        abs_path = a.get("abs_path")
+        if ext in _VECTOR_SUFFIXES:
+            if abs_path and Path(abs_path).exists():
+                return {
+                    "available": True,
+                    "format": "svg",
+                    "abs_path": abs_path,
+                    "hint": ("SVG is plain text — Read this abs_path with "
+                             "your file-reading tool to inspect the shape."),
+                }
+            return {
+                "available": False,
+                "format": "svg",
+                "reason": f"SVG binary missing on disk (expected at {abs_path}).",
+            }
+        return {
+            "available": False,
+            "format": ext.lstrip(".") or "unknown",
+            "reason": ("Raster previews are not exposed to the agent. The "
+                       "binary lives outside the skill in the external photo "
+                       "folder. Pick by description and tags from find-asset."),
+        }
+    return {
+        "available": False,
+        "reason": f"asset_id '{asset_id}' not found in {asset_dir or DEFAULT_ASSETS_DIR}.",
     }
 
 
@@ -535,6 +617,8 @@ def _cli():
     r = sub.add_parser("read-assets")
     r.add_argument("asset_dir", nargs="?", default=None,
                    help="path to assets directory (default: bundled assets/)")
+    r.add_argument("--external-dir", default=None,
+                   help="external raster folder (default: ../../assets-external/)")
 
     r = sub.add_parser("find-asset")
     r.add_argument("asset_dir", nargs="?", default=None,
@@ -542,6 +626,15 @@ def _cli():
     r.add_argument("--kind", default=None)
     r.add_argument("--tags", default=None, help="comma-separated")
     r.add_argument("--limit", type=int, default=10)
+    r.add_argument("--external-dir", default=None,
+                   help="external raster folder (default: ../../assets-external/)")
+
+    r = sub.add_parser("preview-asset")
+    r.add_argument("asset_id")
+    r.add_argument("--asset-dir", default=None,
+                   help="path to assets directory (default: bundled assets/)")
+    r.add_argument("--external-dir", default=None,
+                   help="external raster folder (default: ../../assets-external/)")
 
     r = sub.add_parser("validate-slide")
     r.add_argument("slide", help="slide.json (a single slide spec)")
@@ -585,10 +678,15 @@ def _cli():
     elif args.command == "chart-sanity":
         _print_json(chart_sanity(_load_json_arg(args.content)))
     elif args.command == "read-assets":
-        _print_json(read_assets(args.asset_dir))
+        _print_json(read_assets(args.asset_dir, external_dir=args.external_dir))
     elif args.command == "find-asset":
         tags = args.tags.split(",") if args.tags else None
-        _print_json(find_asset(args.asset_dir, kind=args.kind, tags=tags, limit=args.limit))
+        _print_json(find_asset(args.asset_dir, kind=args.kind, tags=tags,
+                               limit=args.limit, external_dir=args.external_dir))
+    elif args.command == "preview-asset":
+        _print_json(preview_asset(args.asset_id,
+                                  asset_dir=args.asset_dir,
+                                  external_dir=args.external_dir))
     elif args.command == "validate-slide":
         slide = _load_json_arg(f"@{args.slide}")
         _print_json(validate_slide(slide))

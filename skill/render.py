@@ -26,6 +26,22 @@ from pptx.util import Emu, Inches
 from components import Context, render_component
 
 
+# --- ORG SETTINGS — replace with your values. Don't commit changes. ----------
+# After editing, prevent accidental commits with:
+#   git update-index --skip-worktree skill/render.py
+# Reverse with: git update-index --no-skip-worktree skill/render.py
+COMPANY_NAME = "company_name"           # ← your org name; appears in non-cover slide header
+LOGO_ASSET_ID = "org_logo"              # ← skill/assets/<this>.{png,jpg,svg,webp}
+PAGE_NUMBERS = True
+SHOW_PRESENTATION_TITLE = True
+
+# Where raster photo binaries live (outside the skill, too heavy to ship).
+# None → splice uses its default ../assets-external/ (sibling of the repo).
+# Set an absolute path if your external folder lives elsewhere.
+EXTERNAL_ASSETS_DIR = None
+# -----------------------------------------------------------------------------
+
+
 # Slide background enum → theme color key.
 # white     → palette.background     (#FFFFFF)
 # light_grey → palette.surface       (#EBEBEB)
@@ -66,33 +82,15 @@ def _apply_background(slide, ctx: Context, bg_kind: str) -> None:
 
 from recipes import RECIPES
 
-PRIVATE_CONFIG_PATH = Path(__file__).parent / "private_config.yaml"
-
-
-def _load_private_config() -> dict:
-    """Load private_config.yaml if it exists; return {} otherwise.
-
-    private_config.yaml is gitignored. It carries org-specific settings
-    (company_name, logo, page numbers, etc.) the user keeps local.
-    """
-    if not PRIVATE_CONFIG_PATH.exists():
-        return {}
-    try:
-        with open(PRIVATE_CONFIG_PATH) as f:
-            return yaml.safe_load(f) or {}
-    except yaml.YAMLError:
-        return {}
-
 
 def _apply_decorations(slide, ctx: Context, slide_spec: dict, plan: dict,
-                       config: dict, total_slides: int) -> None:
+                       total_slides: int) -> None:
     """Stamp logo, presentation title, and page number on every non-cover
-    slide. Driven by `private_config.yaml`. Skips cover (id=1)."""
+    slide. Driven by the ORG SETTINGS constants at the top of this file.
+    Skips cover (id=1)."""
     from pptx.enum.text import PP_ALIGN
     from pptx.util import Pt
 
-    if not config:
-        return
     slide_id = slide_spec.get("id", 0)
     if slide_id == 1:
         return  # cover skips decorations
@@ -102,8 +100,12 @@ def _apply_decorations(slide, ctx: Context, slide_spec: dict, plan: dict,
     footer_y_in = canvas_h_in * 13 / 14 + 0.06  # just below content area
 
     # --- 1. Presentation title at header-left ---
-    if config.get("presentation_title", {}).get("enabled"):
-        company = (config.get("company_name") or "").strip()
+    if SHOW_PRESENTATION_TITLE:
+        # The literal placeholder "company_name" is intentional — skip the
+        # text entirely until the user replaces it with their real org name.
+        company = (COMPANY_NAME or "").strip()
+        if company == "company_name":
+            company = ""
         deck_title = (plan.get("deck_title") or "").strip()
         parts = [p for p in (company, deck_title) if p]
         if parts:
@@ -127,7 +129,7 @@ def _apply_decorations(slide, ctx: Context, slide_spec: dict, plan: dict,
             run.font.color.rgb = ctx.rgb("text_secondary")
 
     # --- 2. Page number at footer-right ---
-    if config.get("page_numbers", {}).get("enabled"):
+    if PAGE_NUMBERS:
         text = f"{slide_id} / {total_slides}"
         box = slide.shapes.add_textbox(
             Inches(canvas_w_in * 0.85),
@@ -148,26 +150,55 @@ def _apply_decorations(slide, ctx: Context, slide_spec: dict, plan: dict,
         run.font.color.rgb = ctx.rgb("text_secondary")
 
     # --- 3. Logo at footer-left ---
-    logo_cfg = config.get("logo") or {}
-    logo_id = logo_cfg.get("asset_id")
-    if logo_id:
+    if LOGO_ASSET_ID:
         asset_dir = Path(__file__).parent / "assets"
         logo_path = None
-        for ext in (".png", ".jpg", ".jpeg", ".webp"):
-            cand = asset_dir / f"{logo_id}{ext}"
+        for ext in (".png", ".jpg", ".jpeg", ".webp", ".svg"):
+            cand = asset_dir / f"{LOGO_ASSET_ID}{ext}"
             if cand.exists():
                 logo_path = cand
                 break
         x = Inches(canvas_w_in * 0.04)
         y = Inches(footer_y_in - 0.05)
         h = Inches(0.40)
-        if logo_path:
+        if logo_path and logo_path.suffix.lower() == ".svg":
+            # SVG logo: rasterize to a small high-res PNG and embed. We don't
+            # use the native asvg:svgBlip path here because the logo is tiny
+            # (~40px tall) and the raster is visually indistinguishable.
+            try:
+                import io
+                import cairosvg  # type: ignore
+                png_buf = io.BytesIO()
+                cairosvg.svg2png(url=str(logo_path), output_width=1024,
+                                 write_to=png_buf)
+                png_buf.seek(0)
+                slide.shapes.add_picture(png_buf, x, y, height=h)
+            except ImportError:
+                # cairosvg missing — show a hint-shaped placeholder.
+                shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y,
+                                               Inches(0.40), h)
+                shape.name = f"LOGO_SVG_NEEDS_CAIROSVG:{LOGO_ASSET_ID}"
+                shape.fill.solid()
+                shape.fill.fore_color.rgb = ctx.rgb("tints.grey_60")
+                shape.line.color.rgb = ctx.rgb("neutral_medium")
+                shape.line.width = Emu(12700)
+                shape.line.dash_style = 7
+                tf = shape.text_frame
+                p = tf.paragraphs[0]
+                from pptx.enum.text import PP_ALIGN as _A
+                p.alignment = _A.CENTER
+                run = p.add_run()
+                run.text = "svg"
+                run.font.name = ctx.font_name("body")
+                run.font.size = Pt(8)
+                run.font.color.rgb = ctx.rgb("text_secondary")
+        elif logo_path:
             slide.shapes.add_picture(str(logo_path), x, y, height=h)
         else:
             # Placeholder so the user sees "logo missing" until they add it
             shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y,
                                            Inches(0.40), h)
-            shape.name = f"ASSET_PLACEHOLDER:{logo_id}:contain"
+            shape.name = f"ASSET_PLACEHOLDER:{LOGO_ASSET_ID}:contain"
             shape.fill.solid()
             shape.fill.fore_color.rgb = ctx.rgb("tints.grey_60")
             shape.line.color.rgb = ctx.rgb("neutral_medium")
@@ -193,7 +224,6 @@ def render(plan: dict, theme: dict, out_path: str) -> None:
     prs.slide_height = Inches(canvas.get("height_in", 7.5))
 
     ctx = Context.from_theme(theme)
-    config = _load_private_config()
 
     # Use the blank layout — index 6 is typical for "Blank" in default master.
     blank_layout = prs.slide_layouts[6]
@@ -221,7 +251,7 @@ def render(plan: dict, theme: dict, out_path: str) -> None:
             render_component(slide, ctx, placement)
 
         # Decorations (logo, page number, presentation title) — non-cover only.
-        _apply_decorations(slide, ctx, slide_spec, plan, config, total_slides)
+        _apply_decorations(slide, ctx, slide_spec, plan, total_slides)
 
     prs.save(out_path)
 
@@ -258,8 +288,12 @@ def _cli():
     p.add_argument("--theme", default=None,
                    help="theme.yaml path (defaults to ./theme.yaml)")
     p.add_argument("--assets", default=None,
-                   help="asset directory (defaults to bundled assets/ if present). "
-                        "Pass an external path to override.")
+                   help="skill assets directory (defaults to bundled assets/). "
+                        "Holds sidecar yamls + SVG binaries.")
+    p.add_argument("--external-assets", default=None,
+                   help="external raster folder (defaults to "
+                        "EXTERNAL_ASSETS_DIR constant or ../assets-external/). "
+                        "Holds photo binaries that live outside the skill.")
     p.add_argument("--no-splice", action="store_true",
                    help="Skip the splice step and leave image placeholders.")
     args = p.parse_args()
@@ -275,14 +309,20 @@ def _cli():
     if args.no_splice:
         return
     assets_dir = Path(args.assets) if args.assets else DEFAULT_ASSETS_DIR
+    external_dir = args.external_assets or EXTERNAL_ASSETS_DIR
     if _should_splice(assets_dir):
         try:
             from splice_assets import splice
         except ImportError:
             print("(splice_assets.py not importable — skipping splice)", file=sys.stderr)
             return
-        warnings = splice(args.out, str(assets_dir), args.out)
+        warnings = splice(
+            args.out, args.out,
+            skill_assets_dir=str(assets_dir),
+            external_assets_dir=external_dir,
+        )
         print(f"spliced from {assets_dir}"
+              + (f" + external={external_dir}" if external_dir else "")
               + (f" ({len(warnings)} warnings)" if warnings else ""),
               file=sys.stderr)
     else:

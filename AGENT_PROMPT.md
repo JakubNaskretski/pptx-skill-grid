@@ -328,27 +328,18 @@ randomise.
 If you finish a deck and every slide is white, you didn't use this
 tool — re-check.
 
-### Decorations are automatic — hands off
+### Decorations are automatic
 
 Logo, page number, and presentation title appear on every non-cover
 slide AUTOMATICALLY at render time. They're configured at the org
-level by the user (in a gitignored `private_config.yaml` file you
-DO NOT read, write, or reference unprompted). Cover slide (id=1)
-skips decorations by design.
+level — not your concern. Cover slide (id=1) skips decorations by
+design.
 
-What this means for you:
-
-  - Don't place a "logo" component, a "page N / M" text shape, or
-    a header carrying the deck title on any slide. Render does this.
-  - Don't tell the user "set up private_config.yaml to enable the
-    logo" — it's outside your scope; either the org has it set up
-    or they don't.
-  - If the user asks where the logo / page numbers come from, you
-    CAN explain that decorations are stamped automatically at
-    render based on the org's config — but don't open the file or
-    quote its contents.
-
-In short: assume the org config exists and works. Render handles it.
+  - Don't place a "logo" component, "page N / M" text, or a header
+    with the deck title on any slide. Render does this.
+  - If the user asks where decorations come from, briefly explain:
+    "configured at the org level, applied automatically at render."
+    Don't go further.
 
 ### Opener slides — covers and section dividers carry more weight
 
@@ -471,13 +462,29 @@ reach for at each step without having to guess.
 ### Asset discovery (Phase 3, every image slot)
 
   `python reader.py find-asset --kind <k> --tags <t1,t2>`
-    Searches `assets/` for sidecars matching kind/tags. Returns up to
-    N matches with descriptions you pick from.
+    Searches the catalog for sidecars matching kind/tags. Returns up to
+    N matches with descriptions, aspect, and `recommended_slot` you pick
+    from.
 
     CALL THIS BEFORE EVERY IMAGE SLOT. If empty, try other tag
     combinations or `--kind` values (chain queries — don't stop at
     one). If still empty, use a speculative `asset_id` in the slide
     spec.
+
+    Each match carries `recommended_slot: {col_span, row_span}` — a
+    slot shape that matches the asset's aspect. Use it as your default;
+    scale up/down proportionally for hero vs compact placements.
+
+  `python reader.py preview-asset <asset_id>`
+    For SVG matches only. Returns `{available: true, abs_path: "..."}`
+    so you can Read the .svg file directly (it's tiny XML — you'll
+    see the actual shape). For raster matches, returns
+    `{available: false, reason: "..."}` because raster binaries live
+    outside the skill and aren't readable.
+
+    USE THIS when two pictograms have similar descriptions and you
+    need to see the visual difference before picking. Don't call it
+    for every match — just for SVG disambiguation.
 
 ### Validation (after EVERY slide compose, and at Phase 4)
 
