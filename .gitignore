@@ -13,6 +13,5 @@ build/
 *.egg
 out/
 *.pptx
-!examples/*.pptx
 !tests/fixtures/*.pptx
 .warnings.txt

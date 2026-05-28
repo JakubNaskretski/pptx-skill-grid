@@ -161,16 +161,50 @@ You may revise a slide on user feedback; you may not add slides not in the
 approved outline. If you think a slide is missing, raise it as plain text
 to the user. Do not insert.
 
-### Per-slide self-validation checklist (silent)
+### Per-slide self-validation (one call)
 
-For each slide before presenting:
+For each slide draft, run:
 
-- `python reader.py grid-audit --components '<placements>'` — must return `ok: true`
-- For every `heading`/`text` component: `python reader.py measure-text "<text>" --type-level <level> --cell-rect '<rect>'` — must return `fits: true`
-- For every `image` component with a real asset_id: `python reader.py check-asset-fit --asset '<asset_yaml>' --cell-rect '<rect>'` — `clean_fit: true` is preferred; otherwise accept the crop or pick a different asset
-- For every `chart` component: `python reader.py chart-sanity --content '<chart>'` — must return `ok: true`
-- If text doesn't fit: shorten it. **Never raise size or change the type level.**
-- If asset doesn't fit cleanly: pick another or accept the crop explicitly.
+```bash
+python reader.py validate-slide <slide.json>
+```
+
+This consolidates four checks into one call:
+
+| Check | Severity | What it catches |
+|---|---|---|
+| recipe resolution | ERROR | Unknown recipe; recipe build crashed |
+| `grid_audit` | ERROR | Overlapping components, out-of-bounds placements |
+| `measure_text` per text component | **tiered** — see below | Text overflowing its cell |
+| `palette_audit` | WARNING | Off-palette explicit colors in style_overrides |
+| `chart_sanity` per chart | WARNING | Pie with 8 categories, line chart with 2 categories, etc. |
+
+**Text overflow severity:**
+
+| Overflow | Severity | What to do |
+|---|---|---|
+| `lines <= max_lines` | (no entry) | Fits cleanly |
+| `lines == max_lines + 1` | WARNING | One line over — sometimes acceptable for emphasis; check by reading the details |
+| `lines > max_lines + 1` | ERROR | Multi-line overflow; must shorten the text |
+
+Returns `{ok, slide_id, errors, warnings}`. `ok: false` iff any error. Fix
+errors and re-validate before presenting the slide to the user. Read warnings
+and decide whether to address them (don't auto-fix every warning — some
+overflows are intentional emphasis).
+
+**If text doesn't fit:** shorten it. **Never raise size or change the type
+level** — the type scale is the single source of typographic consistency.
+
+**Image checks are a separate call** because they need the actual asset
+metadata as input:
+
+```bash
+python reader.py check-asset-fit --asset '<asset_yaml>' --cell-rect '<rect>'
+```
+
+Run this on every image slot where you've assigned a real `asset_id`.
+`clean_fit: true` is preferred; otherwise accept the crop or pick a
+different asset.
 
 ### Picking assets
 

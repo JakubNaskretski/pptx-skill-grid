@@ -230,14 +230,174 @@ def find_asset(
     }
 
 
-# ---------- whole-plan validation ----------
+# ---------- single-slide and whole-plan validation ----------
+
+
+_TEXT_BEARING = ("heading", "text", "quote")
+
+
+def _extract_text_for_measure(placement: dict) -> tuple[str, str]:
+    """Extract (text, type_level) for measure_text on a text-bearing placement.
+
+    Returns (None, None) if no measurable text content.
+    """
+    ptype = placement.get("type")
+    content = placement.get("content")
+    if ptype == "quote":
+        if isinstance(content, dict):
+            text = content.get("text", "")
+        else:
+            text = str(content) if content else ""
+        level = placement.get("level", "quote")
+    elif ptype in ("heading", "text"):
+        level = placement.get("level", "body" if ptype == "text" else "h1")
+        if isinstance(content, list):
+            text = "\n".join(str(c) for c in content)
+        elif content is None:
+            text = ""
+        else:
+            text = str(content)
+    else:
+        return None, None
+    return (text, level) if text else (None, None)
+
+
+def validate_slide(slide_spec: dict, theme: dict | None = None) -> dict:
+    """Validate ONE slide draft.
+
+    Consolidates:
+      - recipe resolution (errors out if unknown or build fails)
+      - grid_audit            (ERROR on overlaps / out-of-bounds)
+      - measure_text          (per text-bearing component, tiered severity)
+      - palette_audit         (WARNING on off-palette colors)
+      - chart_sanity          (WARNING on chart-type / data mismatches)
+
+    Severity for text overflow:
+      lines <= max_lines             -> ok (no entry)
+      lines == max_lines + 1         -> WARNING (one line over — may be acceptable)
+      lines >  max_lines + 1         -> ERROR (multi-line overflow drowns the slide)
+
+    Returns {ok, slide_id, errors, warnings}. `ok` is False iff any error.
+    """
+    if theme is None:
+        theme = _load_theme()
+    canvas = theme.get("canvas", {})
+    canvas_w = canvas.get("width_in", 13.333)
+    canvas_h = canvas.get("height_in", 7.5)
+
+    slide_id = slide_spec.get("id", "?")
+    recipe_name = slide_spec.get("recipe")
+
+    errors: list[dict] = []
+    warnings: list[dict] = []
+
+    # 1. Resolve placements
+    if recipe_name not in RECIPES and recipe_name != "free":
+        return {
+            "ok": False,
+            "slide_id": slide_id,
+            "errors": [{
+                "kind": "unknown_recipe",
+                "slide_id": slide_id,
+                "message": f"unknown recipe: {recipe_name}",
+            }],
+            "warnings": [],
+        }
+    if recipe_name == "free":
+        placements = slide_spec.get("components") or []
+    else:
+        try:
+            placements = RECIPES[recipe_name](
+                slide_spec.get("content") or {},
+                **(slide_spec.get("params") or {}),
+            )
+        except Exception as e:
+            return {
+                "ok": False,
+                "slide_id": slide_id,
+                "errors": [{
+                    "kind": "recipe_error",
+                    "slide_id": slide_id,
+                    "message": f"recipe {recipe_name} raised: {e}",
+                }],
+                "warnings": [],
+            }
+
+    # 2. Grid audit
+    ga = _grid_audit(placements)
+    if not ga["ok"]:
+        errors.append({"kind": "grid_audit", "slide_id": slide_id, "details": ga})
+
+    # 3. Text overflow per heading/text/quote
+    for idx, p in enumerate(placements):
+        if p.get("type") not in _TEXT_BEARING:
+            continue
+        text, level = _extract_text_for_measure(p)
+        if not text:
+            continue
+        try:
+            from grid import placement_to_rect
+            rect = placement_to_rect(p["grid"])
+        except (KeyError, ValueError):
+            continue
+        try:
+            m = _measure_text(
+                text,
+                type_level=level,
+                cell_rect=rect,
+                canvas_w_in=canvas_w,
+                canvas_h_in=canvas_h,
+                theme=theme,
+            )
+        except KeyError:
+            continue  # unknown type_level
+        if m["fits"]:
+            continue
+        overflow_lines = m["lines"] - m["max_lines"]
+        entry = {
+            "slide_id": slide_id,
+            "component_index": idx,
+            "component_type": p.get("type"),
+            "type_level": level,
+            "lines": m["lines"],
+            "max_lines": m["max_lines"],
+            "overflow_chars": m["overflow_chars"],
+            "suggested_size_pt": m["suggested_size_pt"],
+            "suggestion": m["suggestion"],
+        }
+        if overflow_lines <= 1:
+            warnings.append({"kind": "text_overflow_minor", **entry})
+        else:
+            errors.append({"kind": "text_overflow_major", **entry})
+
+    # 4. Palette audit
+    pa = _palette_audit(placements, theme)
+    if not pa["ok"]:
+        warnings.append({"kind": "palette_audit", "slide_id": slide_id, "details": pa})
+
+    # 5. Chart sanity per chart
+    for idx, p in enumerate(placements):
+        if p.get("type") != "chart":
+            continue
+        cs = _chart_sanity(p.get("content") or {})
+        if not cs["ok"]:
+            warnings.append({
+                "kind": "chart_sanity",
+                "slide_id": slide_id,
+                "component_index": idx,
+                "details": cs,
+            })
+
+    return {
+        "ok": len(errors) == 0,
+        "slide_id": slide_id,
+        "errors": errors,
+        "warnings": warnings,
+    }
 
 
 def validate_plan(plan: dict) -> dict:
-    """Run all hard checks against a plan.
-
-    Errors block the build; warnings don't.
-    """
+    """Run validate_slide on each slide + deck_flow at the end."""
     errors: list[dict] = []
     warnings: list[dict] = []
 
@@ -252,73 +412,19 @@ def validate_plan(plan: dict) -> dict:
         errors.append({"kind": "empty", "message": "plan has no slides"})
         return {"ok": False, "errors": errors, "warnings": warnings}
 
-    # Per-slide checks
-    for i, slide in enumerate(slides, start=1):
-        recipe_name = slide.get("recipe")
-        slide_id = slide.get("id", i)
+    theme = _load_theme()  # Load once, pass to each validate_slide call
+    for slide in slides:
+        result = validate_slide(slide, theme=theme)
+        errors.extend(result["errors"])
+        warnings.extend(result["warnings"])
 
-        if recipe_name not in RECIPES and recipe_name != "free":
-            errors.append({
-                "kind": "unknown_recipe",
-                "slide_id": slide_id,
-                "message": f"unknown recipe: {recipe_name}",
-            })
-            continue
-
-        # Resolve to component placements
-        if recipe_name == "free":
-            placements = slide.get("components") or []
-        else:
-            try:
-                placements = RECIPES[recipe_name](
-                    slide.get("content") or {},
-                    **(slide.get("params") or {}),
-                )
-            except Exception as e:
-                errors.append({
-                    "kind": "recipe_error",
-                    "slide_id": slide_id,
-                    "message": f"recipe {recipe_name} raised: {e}",
-                })
-                continue
-
-        # Grid check
-        ga = _grid_audit(placements)
-        if not ga["ok"]:
-            errors.append({
-                "kind": "grid_audit",
-                "slide_id": slide_id,
-                "details": ga,
-            })
-
-        # Palette check (warnings only)
-        pa = _palette_audit(placements, _load_theme())
-        if not pa["ok"]:
-            warnings.append({
-                "kind": "palette_audit",
-                "slide_id": slide_id,
-                "details": pa,
-            })
-
-        # Chart sanity on chart components (warnings only)
-        for c in placements:
-            if c.get("type") == "chart":
-                cs = _chart_sanity(c.get("content") or {})
-                if not cs["ok"]:
-                    warnings.append({
-                        "kind": "chart_sanity",
-                        "slide_id": slide_id,
-                        "details": cs,
-                    })
-
-    # Whole-plan flow
+    # Deck-level narrative checks
     df = _deck_flow(plan)
     if not df["ok"]:
         for issue in df["issues"]:
             warnings.append({"kind": f"deck_flow.{issue['kind']}", "details": issue})
 
-    ok = len(errors) == 0
-    return {"ok": ok, "errors": errors, "warnings": warnings}
+    return {"ok": len(errors) == 0, "errors": errors, "warnings": warnings}
 
 
 # ---------- CLI ----------
@@ -384,6 +490,9 @@ def _cli():
     r.add_argument("--tags", default=None, help="comma-separated")
     r.add_argument("--limit", type=int, default=10)
 
+    r = sub.add_parser("validate-slide")
+    r.add_argument("slide", help="slide.json (a single slide spec)")
+
     r = sub.add_parser("validate-plan")
     r.add_argument("plan")
 
@@ -427,6 +536,9 @@ def _cli():
     elif args.command == "find-asset":
         tags = args.tags.split(",") if args.tags else None
         _print_json(find_asset(args.asset_dir, kind=args.kind, tags=tags, limit=args.limit))
+    elif args.command == "validate-slide":
+        slide = _load_json_arg(f"@{args.slide}")
+        _print_json(validate_slide(slide))
     elif args.command == "validate-plan":
         plan = _load_json_arg(f"@{args.plan}")
         _print_json(validate_plan(plan))

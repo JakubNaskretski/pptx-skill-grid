@@ -1,5 +1,8 @@
 # Examples
 
+> Rendered `.pptx` files are not tracked in git — too much binary churn.
+> Re-render any of the JSON plans with `python render.py …` to produce them.
+
 ## example_plan.json
 
 An 11-slide Q4-results deck exercising 11 of the 13 recipes:

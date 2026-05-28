@@ -96,10 +96,14 @@ type_scale:
     font: heading
   hero_metric:
     # For single_metric — one giant number, takes ~half the slide vertically.
+    # Uses 'body' (Arial) intentionally because Georgia uses old-style figures
+    # — digits 3/4/5/7/9 have descenders below the baseline and look misaligned
+    # next to 0/1/2/6/8/$/M. Arial has lining figures so all digits sit on the
+    # same baseline.
     size_pt: 150
     weight: 700
     line_height: 1.00
-    font: heading
+    font: body
   statement:
     # For big_statement — large declarative text, smaller than section_number,
     # bigger than h1. Centered or left, optional sub-line beneath.
