@@ -479,30 +479,41 @@ reach for at each step without having to guess.
 
 ### Asset discovery (Phase 3, every image slot)
 
+  `python reader.py asset-index`
+    THE DEFAULT entry point for asset work. Returns the entire
+    catalog as `{asset_id: {kind, description, tags, aspect,
+    recommended_slot, previewable}}` in a single call. Cache it at
+    the start of asset work and **filter locally** (string-match
+    descriptions, intersect tags, sort by relevance) — much faster
+    and more flexible than chained find-asset queries when you're
+    exploring or paraphrasing.
+
+    Each entry's `recommended_slot: {col_span, row_span}` matches
+    the asset's aspect to a grid slot — use it as your default;
+    scale both spans proportionally for hero vs compact placements.
+
+  `python reader.py tag-summary`
+    Returns `{total, kinds: {name: count}, tags: {name: count}}`.
+    Call once when you start to learn the catalog's actual
+    vocabulary before crafting find-asset queries. Tags you don't
+    see here don't exist in the catalog.
+
   `python reader.py find-asset --kind <k> --tags <t1,t2>`
-    Searches the catalog for sidecars matching kind/tags. Returns up to
-    N matches with descriptions, aspect, and `recommended_slot` you pick
-    from.
-
-    CALL THIS BEFORE EVERY IMAGE SLOT. If empty, try other tag
-    combinations or `--kind` values (chain queries — don't stop at
-    one). If still empty, use a speculative `asset_id` in the slide
-    spec.
-
-    Each match carries `recommended_slot: {col_span, row_span}` — a
-    slot shape that matches the asset's aspect. Use it as your default;
-    scale up/down proportionally for hero vs compact placements.
+    The narrow-query tool. Filters strictly by `kind` (exact) and
+    `tags` (AND across all provided). Use when you know exactly the
+    kind+tags combo you want — not for exploration. If empty after
+    one or two combos, switch to asset-index + local filtering.
 
   `python reader.py preview-asset <asset_id>`
-    For SVG matches only. Returns `{available: true, abs_path: "..."}`
-    so you can Read the .svg file directly (it's tiny XML — you'll
-    see the actual shape). For raster matches, returns
-    `{available: false, reason: "..."}` because raster binaries live
-    outside the skill and aren't readable.
+    For SVG matches with `previewable: true`. Returns
+    `{available: true, abs_path: "..."}` so you can Read the .svg
+    file directly (tiny XML — you'll see the actual shape). For
+    raster matches, returns `{available: false, reason: "..."}`
+    because binaries live outside the skill.
 
-    USE THIS when two pictograms have similar descriptions and you
-    need to see the visual difference before picking. Don't call it
-    for every match — just for SVG disambiguation.
+    USE THIS when two SVG candidates have similar descriptions and
+    you need to see the visual difference. Don't call it for every
+    match — just for disambiguation.
 
 ### Validation (after EVERY slide compose, and at Phase 4)
 

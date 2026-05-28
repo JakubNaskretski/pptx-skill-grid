@@ -207,30 +207,50 @@ different asset.
 
 ### Picking assets
 
+**Default workflow — start with the catalog as a single map:**
+
+```bash
+python reader.py tag-summary      # see what tags + kinds exist
+python reader.py asset-index      # full catalog as {id: {summary}}
+```
+
+`asset-index` returns the *entire* catalog in one call as a compact
+id→summary map keyed by asset_id. Cache it once at the start of asset
+work and **filter locally** (string-match descriptions, intersect tags,
+sort by relevance) instead of running repeated `find-asset` queries.
+Each entry has `kind`, `description`, `tags`, `aspect`,
+`recommended_slot`, and `previewable` (true for SVG).
+
 For every image slot:
 
-1. `python reader.py find-asset --kind <kind> --tags <t1,t2>`
-   (defaults to bundled `assets/`; pass a path positionally to override).
-2. If `count == 0`, try other queries — different tag combinations,
-   different `--kind`, or no tags. Chain multiple `find-asset` calls
-   in a single turn as needed; don't artificially stop at one attempt.
-   (The tool also auto-broadens without tags on its own and reports
-   `broadened: true` when it does so.)
-3. If nothing matches after a few queries, pick a fallback (see below).
-4. **For pictograms (SVG matches), preview before committing.** SVG
-   binaries are tiny text files inside `skill/assets/`. Each match has
-   `abs_path`; Read that file directly to see the actual shape —
-   descriptions like "thin arrow" vs "bold arrow" are ambiguous and
-   visual fit matters for icons. For raster photo matches, descriptions
-   and tags are all you get — binaries live outside the skill and are
-   not previewable. (See `preview-asset` below.)
-5. **Match the grid slot to the asset's aspect.** Each yaml has
-   `recommended_slot: {col_span, row_span}` precomputed so the slot
-   aspect matches the asset's aspect. Use it as your default — scale
-   both spans up/down proportionally for hero vs compact usage.
-   Slots that don't match the asset's aspect will either crop
-   (`fit: "fill"`) or letterbox (`fit: "contain"`).
-6. Run `check-asset-fit` on the chosen pairing if you want to be sure.
+1. From your cached `asset-index`, narrow to candidates that match the
+   slide topic — string-match on `description`, intersect with
+   slot-appropriate `kind`, take 3–5 likely picks.
+2. **For pictograms (`previewable: true`), preview before committing.**
+   SVGs are tiny text files inside `skill/assets/`. Call
+   `python reader.py preview-asset <id>` for the `abs_path`, then Read
+   that file — the XML shows the actual shape. Descriptions like
+   "thin arrow" vs "bold arrow" are ambiguous and visual fit matters.
+3. **For raster photos (`previewable: false`)**, pick by description
+   and tags; binaries live outside the skill and aren't readable.
+4. **Match the grid slot to the asset's aspect.** Use the
+   `recommended_slot: {col_span, row_span}` from the index entry as
+   your default — scale both spans up/down proportionally for hero vs
+   compact usage. Slots that don't match the asset's aspect will
+   either crop (`fit: "fill"`) or letterbox (`fit: "contain"`).
+5. Run `check-asset-fit` on the chosen pairing if you want to be sure.
+
+**When to fall back to `find-asset`:**
+
+```bash
+python reader.py find-asset --kind <k> --tags <t1,t2> --limit 5
+```
+
+Use this when you already know the exact `kind`+`tags` you want and
+just need the matching rows — e.g. "all `pictogram` with tag `chart`".
+For broader exploration (paraphrased descriptions, partial tag
+matches, aspect-driven filtering), `asset-index` + local filtering is
+faster and more flexible than chained `find-asset` queries.
 
 #### preview-asset
 
@@ -532,8 +552,10 @@ python reader.py deck-flow plan.json
 python reader.py chart-sanity --content '{"type":"pie","categories":[…],"series":[…]}'
 
 # Asset discovery
-python reader.py read-assets [<asset_dir>] [--external-dir DIR]
-python reader.py find-asset [<asset_dir>] --kind photo --tags people,office --limit 5
+python reader.py asset-index                   # ← default: full catalog as {id: {summary}}
+python reader.py tag-summary                   # ← vocabulary: which kinds + tags exist (counts)
+python reader.py read-assets [<asset_dir>]     # full yamls (heavy; rarely needed)
+python reader.py find-asset --kind photo --tags people,office --limit 5
 python reader.py preview-asset <asset_id>     # SVG → abs_path; raster → not available
 
 # Template opener (Phase 2 outline step)

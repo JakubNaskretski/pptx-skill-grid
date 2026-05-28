@@ -18,6 +18,8 @@ CLI commands (use stdout JSON for machine-readability):
   python reader.py deck-flow <plan.json>
   python reader.py chart-sanity --content '<json>'
 
+  python reader.py asset-index [--asset-dir DIR] [--external-dir DIR]
+  python reader.py tag-summary [--asset-dir DIR] [--external-dir DIR]
   python reader.py read-assets [<asset_dir>] [--external-dir DIR]
   python reader.py find-asset [<asset_dir>] [--kind photo] [--tags people,office]
                               [--limit 5] [--external-dir DIR]
@@ -268,6 +270,73 @@ def find_asset(
         "count": len(matches),
         "broadened": broadened,
         "matches": matches,
+    }
+
+
+def asset_index(
+    asset_dir: str | None = None,
+    external_dir: str | None = None,
+) -> dict:
+    """Return a compact id→summary map of every asset in the catalog.
+
+    For agents that want to scan the catalog once and filter locally
+    rather than making repeated find-asset queries. Each entry keeps
+    only the fields useful for picking:
+
+        kind, description, tags, aspect, recommended_slot, previewable
+
+    Heavy fields (sha1, colors_hex, raw width/height) and per-machine
+    fields (abs_path) are omitted — call preview-asset for the file
+    path of an SVG you want to inspect.
+
+    `previewable: true` ⟺ the binary is a `.svg` and lives inside the
+    skill (readable as XML via your file-reading tool).
+    """
+    out: dict[str, dict] = {}
+    for a in read_assets(asset_dir, external_dir=external_dir):
+        asset_id = a.get("id")
+        if not asset_id:
+            continue
+        file = (a.get("file") or "").lower()
+        out[asset_id] = {
+            "kind": a.get("kind"),
+            "description": a.get("description") or "",
+            "tags": a.get("tags") or [],
+            "aspect": a.get("aspect"),
+            "recommended_slot": a.get("recommended_slot"),
+            "previewable": file.endswith(".svg"),
+        }
+    return out
+
+
+def tag_summary(
+    asset_dir: str | None = None,
+    external_dir: str | None = None,
+) -> dict:
+    """Return total counts + per-kind + per-tag histograms for the catalog.
+
+    Useful before you craft find-asset queries — shows you the actual
+    vocabulary instead of guessing tag names.
+
+    Returns:
+      {
+        "total": int,                 # number of assets in the catalog
+        "kinds": {name: count, ...},  # sorted desc by count
+        "tags":  {name: count, ...},  # sorted desc by count
+      }
+    """
+    kind_counts: dict[str, int] = {}
+    tag_counts: dict[str, int] = {}
+    assets = read_assets(asset_dir, external_dir=external_dir)
+    for a in assets:
+        kind = a.get("kind") or "unknown"
+        kind_counts[kind] = kind_counts.get(kind, 0) + 1
+        for tag in (a.get("tags") or []):
+            tag_counts[tag] = tag_counts.get(tag, 0) + 1
+    return {
+        "total": len(assets),
+        "kinds": dict(sorted(kind_counts.items(), key=lambda kv: -kv[1])),
+        "tags":  dict(sorted(tag_counts.items(),  key=lambda kv: -kv[1])),
     }
 
 
@@ -648,6 +717,20 @@ def _cli():
     r = sub.add_parser("chart-sanity")
     r.add_argument("--content", required=True)
 
+    r = sub.add_parser("asset-index",
+                       help="Compact id→summary map of the entire catalog.")
+    r.add_argument("--asset-dir", default=None,
+                   help="path to assets directory (default: bundled assets/)")
+    r.add_argument("--external-dir", default=None,
+                   help="external raster folder (default: ../../assets-external/)")
+
+    r = sub.add_parser("tag-summary",
+                       help="Total + per-kind + per-tag counts for the catalog.")
+    r.add_argument("--asset-dir", default=None,
+                   help="path to assets directory (default: bundled assets/)")
+    r.add_argument("--external-dir", default=None,
+                   help="external raster folder (default: ../../assets-external/)")
+
     r = sub.add_parser("read-assets")
     r.add_argument("asset_dir", nargs="?", default=None,
                    help="path to assets directory (default: bundled assets/)")
@@ -714,6 +797,12 @@ def _cli():
         _print_json(deck_flow(plan))
     elif args.command == "chart-sanity":
         _print_json(chart_sanity(_load_json_arg(args.content)))
+    elif args.command == "asset-index":
+        _print_json(asset_index(asset_dir=args.asset_dir,
+                                external_dir=args.external_dir))
+    elif args.command == "tag-summary":
+        _print_json(tag_summary(asset_dir=args.asset_dir,
+                                external_dir=args.external_dir))
     elif args.command == "read-assets":
         _print_json(read_assets(args.asset_dir, external_dir=args.external_dir))
     elif args.command == "find-asset":
