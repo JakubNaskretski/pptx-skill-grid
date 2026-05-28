@@ -1,69 +1,14 @@
-# Agent setup (GPT-5.4 and similar)
+# Agent system prompt — copy this whole file into your platform
 
-Two things to configure in your agent platform:
+This is the **system instructions** / **developer message** for your agent.
+Copy the entire content of this file (or everything below the line break)
+into your platform's system-prompt field.
 
-1. **Model parameters** — what to set, with rationale
-2. **System instructions** — ready-to-paste text
-
-The agent's runtime needs access to the `skill/` folder in this repo (mount
-/ clone / upload — depending on platform). Its working directory should be
-`skill/`. Everything the agent needs to compose, validate, and render is
-inside that one folder.
-
-If your platform doesn't expose a particular parameter, leave it at the
-provider default. The recommended values below are the *useful* settings;
-anything missing isn't a dealbreaker.
+For model parameters (temperature, reasoning_effort, verbosity, etc.) see
+[`AGENT_SETUP.md`](./AGENT_SETUP.md).
 
 ---
 
-## 1. Model parameters
-
-| Parameter | Recommended | Why |
-|---|---|---|
-| `temperature` | **0.3** | Task is structured — pick a recipe from a fixed list, fill typed slots, validate. Low temp keeps the model disciplined (no inventing recipes, no schema drift). Some creativity at the wording layer (bullet text, titles) is fine; 0.3 gives that without breaking structure. |
-| `top_p` | **1.0** (default) | Either set `temperature` OR `top_p`, not both. We use `temperature`. |
-| `frequency_penalty` | **0.0** | Decks legitimately repeat tokens — same recipe name many times, same phrasing patterns across slides. Penalizing repetition would make the agent dodge recipe names. Leave off. |
-| `presence_penalty` | **0.0** | We want the agent to stay on topic (the brief), not introduce new concepts. Leave off. |
-| `reasoning_effort` | **medium** (default) | The agent's work is multi-step: pick recipe → fill content → validate → revise. Medium gives the model room to plan a slide without exploding latency. Use **high** if the user reports the agent making bad recipe choices or skipping validation. |
-| `reasoning_summary` | **auto** | Visibility for debugging. Set **none** in production once you're confident. |
-| `verbosity` | **low** | Every agent output is structured (JSON for brief/outline/plan, one-line confirmations otherwise). The SKILL.md voice section explicitly forbids paragraph-style replies. Low verbosity reinforces this. |
-| `image_detail` | **low** (or N/A) | The compose phase has no vision input — assets are described in text via their sidecar YAMLs. If your platform requires a value, low is fine. |
-| `max_output_tokens` / context | leave high | A 25-slide plan + reasoning trace can be ~10-20K tokens. Don't truncate. |
-
-### Quick reference (JSON-style for OpenAI-compatible APIs)
-
-```json
-{
-  "temperature": 0.3,
-  "top_p": 1.0,
-  "frequency_penalty": 0.0,
-  "presence_penalty": 0.0,
-  "reasoning": {"effort": "medium", "summary": "auto"},
-  "text": {"verbosity": "low"}
-}
-```
-
-For the OpenAI Assistants / Responses API, the field names may differ
-slightly (`reasoning.effort` instead of `reasoning_effort`, etc.) — adjust
-to your SDK.
-
----
-
-## 2. System instructions (ready to paste)
-
-The system prompt lives in its own file for easier copy-paste:
-
-📄 **[`AGENT_PROMPT.md`](./AGENT_PROMPT.md)** — open it, select all, paste
-into your agent's **system instructions** / **developer message** /
-**persona** field.
-
-(A copy of the prompt body is also reproduced below for reference. The
-authoritative source is `AGENT_PROMPT.md` — if the two ever drift, update
-that one.)
-
----
-
-```
 You are a deck-building agent. You produce PowerPoint (.pptx) presentations
 using the pptx-grid-skill installed in your runtime. Your working directory
 is the skill/ folder; everything you need (SKILL.md, reader.py, render.py,
@@ -391,29 +336,3 @@ for itself.
      - revenue_chart_2026.png (slide 12)
    Drop into skill/assets/ and re-run python render.py plan.json out.pptx
    to fill them in."
-```
-
----
-
-## Tips for first runs
-
-When you first wire this up to GPT-5.4:
-
-1. **Start with a deliberately under-specified brief** ("Make a deck about Q4
-   results"). The agent should run Phase 1 and ask pointed follow-ups. If it
-   jumps straight to outlining, the system instructions aren't holding —
-   re-paste them or bump `reasoning_effort` to high.
-
-2. **Watch for invented recipes.** The catalog has 26 names. If the agent
-   produces `plan.json` with a recipe not in the list, `validate-plan` will
-   error out — that's the safety net. But it shouldn't happen if the agent
-   reads SKILL.md properly.
-
-3. **Watch for text overflow at render time.** The agent should be calling
-   `validate-slide` per draft. If the rendered deck shows text spilling out
-   of cells, the agent is skipping the toolbelt — tighten the rules above.
-
-4. **The agent has no vision.** Don't be surprised when it picks the "wrong"
-   photo from your asset library — it's reading text descriptions. Better
-   sidecar descriptions = better picks. Re-run `describe_assets.py
-   --with-vision-prompts` to refresh.
