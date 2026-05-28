@@ -1,0 +1,352 @@
+{
+  "version": "1",
+  "deck_title": "Mercer Analytics — Q4 FY25 results",
+  "slides": [
+    {
+      "id": 1,
+      "recipe": "title_only",
+      "background": "light_orange",
+      "content": {
+        "title": "Q4 FY25 results",
+        "subtitle": "Mercer Analytics  ·  Board update  ·  May 2026"
+      }
+    },
+    {
+      "id": 2,
+      "recipe": "agenda",
+      "content": {
+        "title": "Today's agenda",
+        "items": [
+          "Market context",
+          "Our performance",
+          "Customers and team",
+          "Looking ahead",
+          "Discussion"
+        ]
+      }
+    },
+
+    {
+      "id": 3,
+      "recipe": "section_divider",
+      "background": "light_grey",
+      "content": {"number": "1", "label": "Market context"}
+    },
+    {
+      "id": 4,
+      "recipe": "big_statement",
+      "background": "light_orange",
+      "content": {
+        "statement": "Industry tailwinds softened. Our growth held.",
+        "sub": "Three quarters of decelerating market — we ended FY25 ahead of plan anyway."
+      }
+    },
+    {
+      "id": 5,
+      "recipe": "title_bullets",
+      "content": {
+        "title": "What changed in H2",
+        "bullets": [
+          "Industry growth decelerated from 7% to 3% over four quarters",
+          "Enterprise budgets tightened; sales cycles lengthened by 18 days on average",
+          "Win rates held flat in our top-3 verticals (healthcare, fintech, retail)",
+          "Pricing power preserved on renewals above $250k ACV",
+          "Smaller deals (<$50k) shifted to monthly billing — 11% of new ARR"
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "recipe": "chart_with_takeaway",
+      "content": {
+        "title": "Sector slowed; our growth held",
+        "chart": {
+          "type": "column",
+          "categories": ["Q1", "Q2", "Q3", "Q4"],
+          "series": [
+            {"name": "Industry %", "values": [7.2, 6.4, 4.1, 3.0]},
+            {"name": "Mercer %",   "values": [9.8, 11.2, 12.1, 12.4]}
+          ]
+        },
+        "takeaway": [
+          "Industry growth halved across the year",
+          "Mercer growth steady at 11-12% per quarter",
+          "Share gains continued through softening market"
+        ]
+      }
+    },
+
+    {
+      "id": 7,
+      "recipe": "section_divider",
+      "content": {"number": "2", "label": "Our performance"}
+    },
+    {
+      "id": 8,
+      "recipe": "single_metric",
+      "content": {
+        "title": "Total contract value, FY25",
+        "value": "$23.8M",
+        "caption": "vs. $19.4M in FY24  ·  +23% YoY",
+        "body": [
+          "ARR ended FY25 at $18.1M (+19% YoY)",
+          "Multi-year contracts: 64% of new ACV",
+          "Net retention 108%, down 1pt from FY24",
+          "Gross margin expanded 230bps to 73%"
+        ]
+      }
+    },
+    {
+      "id": 9,
+      "recipe": "metric_strip",
+      "content": {
+        "title": "By the numbers — Q4",
+        "metrics": [
+          {"value": "$5.4M", "label": "Q4 revenue",   "delta": "+24% YoY", "delta_status": "positive"},
+          {"value": "73%",   "label": "Gross margin", "delta": "+230bps",  "delta_status": "positive"},
+          {"value": "$1.1M", "label": "Free cash flow","delta": "+$340k",  "delta_status": "positive"},
+          {"value": "94%",   "label": "Net retention","delta": "-1pt",     "delta_status": "warning"}
+        ]
+      }
+    },
+    {
+      "id": 10,
+      "recipe": "comparison",
+      "content": {
+        "title": "FY24 vs FY25 — segment mix",
+        "left_label": "FY24",
+        "right_label": "FY25",
+        "left_body": [
+          "Enterprise:  58%",
+          "Mid-market: 32%",
+          "SMB:        10%"
+        ],
+        "right_body": [
+          "Enterprise:  64%",
+          "Mid-market: 28%",
+          "SMB:         8%"
+        ]
+      }
+    },
+    {
+      "id": 11,
+      "recipe": "table_full",
+      "content": {
+        "title": "Pipeline by region",
+        "table": {
+          "rows": 5, "cols": 4, "has_header": true,
+          "style": "header_accent",
+          "data": [
+            ["Region",   "Pipeline ($M)", "Coverage", "Win rate"],
+            ["Americas", "12.4",          "3.2x",     "31%"],
+            ["EMEA",     "7.8",           "2.8x",     "27%"],
+            ["APAC",     "3.1",           "2.1x",     "24%"],
+            ["Total",    "23.3",          "2.9x",     "28%"]
+          ]
+        }
+      }
+    },
+    {
+      "id": 12,
+      "recipe": "table_full",
+      "content": {
+        "title": "Win-rate trend",
+        "table": {
+          "rows": 6, "cols": 4, "has_header": true,
+          "style": "zebra_neutral",
+          "data": [
+            ["Quarter", "Won", "Lost", "Win rate"],
+            ["Q1",      "31",  "62",   "33%"],
+            ["Q2",      "34",  "59",   "37%"],
+            ["Q3",      "29",  "61",   "32%"],
+            ["Q4",      "38",  "57",   "40%"],
+            ["FY",      "132", "239",  "36%"]
+          ]
+        }
+      }
+    },
+
+    {
+      "id": 13,
+      "recipe": "section_divider",
+      "background": "light_grey",
+      "content": {"number": "3", "label": "Customers and team", "alignment": "left"}
+    },
+    {
+      "id": 14,
+      "recipe": "quote",
+      "content": {
+        "text": "Mercer is the only platform we trust to ship our regulatory dashboards. We've moved from quarterly reporting to weekly.",
+        "attribution": "Head of Risk Analytics, top-5 EU bank"
+      }
+    },
+    {
+      "id": 15,
+      "recipe": "table_with_callout",
+      "content": {
+        "title": "Pricing — by segment",
+        "callout_heading": "What's covered",
+        "callout_body": [
+          "Annual commit discount on Pro and Enterprise",
+          "All tiers include SSO + audit logs",
+          "Custom SLAs available on Enterprise"
+        ],
+        "table": {
+          "rows": 4, "cols": 4, "has_header": true,
+          "style": "filled_accent",
+          "data": [
+            ["Tier",       "Seats",    "Annual",  "Monthly"],
+            ["Starter",    "Up to 10", "$1,200",  "$120"],
+            ["Pro",        "11-100",   "$8,400",  "$840"],
+            ["Enterprise", "Custom",   "Custom",  "Custom"]
+          ]
+        }
+      }
+    },
+    {
+      "id": 16,
+      "recipe": "table_with_callout",
+      "content": {
+        "title": "Feature matrix — by tier",
+        "callout_heading": "Capabilities",
+        "callout_body": [
+          "Core on every tier",
+          "Advanced workflows from Pro up",
+          "Enterprise-only: custom SLA + DLP"
+        ],
+        "table": {
+          "rows": 4, "cols": 4, "has_header": true,
+          "style": "filled_neutral",
+          "data": [
+            ["Feature",    "Starter", "Pro",    "Enterprise"],
+            ["SSO",        "Yes",     "Yes",    "Yes"],
+            ["Audit logs", "30 days", "1 year", "Custom"],
+            ["Custom SLA", "No",      "No",     "Yes"]
+          ]
+        }
+      }
+    },
+    {
+      "id": 17,
+      "recipe": "team_strip",
+      "content": {
+        "title": "Founding team",
+        "members": [
+          {"name": "Alex Kim",     "role": "CEO",            "bio": "Previously platform lead at Stripe; ex-Apple."},
+          {"name": "Sam Patel",    "role": "CTO",            "bio": "20 years in distributed systems; Datadog alum."},
+          {"name": "Jordan Lee",   "role": "CPO",            "bio": "Built core surfaces at Notion and Figma."},
+          {"name": "Riley Ortiz",  "role": "Head of Sales",  "bio": "Built EMEA + APAC at MongoDB."}
+        ]
+      }
+    },
+    {
+      "id": 18,
+      "recipe": "team_grid_2x2",
+      "content": {
+        "title": "Leadership additions in FY25",
+        "members": [
+          {"name": "Casey Park",   "role": "VP Engineering",
+           "bio": "Scaled the platform team from 12 to 45 across the year. Previously at Snowflake."},
+          {"name": "Morgan Diaz",  "role": "VP Marketing",
+           "bio": "Brought the brand refresh and the new pricing model to market. Ex-Airtable."},
+          {"name": "Taylor Brown", "role": "VP Customer Success",
+           "bio": "Lifted NRR from 94% to 108%. Built the new onboarding playbook."},
+          {"name": "Avery Singh",  "role": "VP Finance",
+           "bio": "Closed our Series C ahead of plan. Operator background, ex-banking."}
+        ]
+      }
+    },
+
+    {
+      "id": 19,
+      "recipe": "section_divider",
+      "background": "light_orange",
+      "content": {"number": "4", "label": "Looking ahead"}
+    },
+    {
+      "id": 20,
+      "recipe": "numbered_list_6up",
+      "content": {
+        "title": "FY26 — six bets",
+        "items": [
+          {"label": "Platform v2",       "body": "Unified API; deprecate v1 endpoints by Q3."},
+          {"label": "Self-serve tier",   "body": "Free + usage-based; launch in Q1."},
+          {"label": "Vertical packs",    "body": "Healthcare-specific compliance kit."},
+          {"label": "EMEA expansion",    "body": "Add 4 AEs in DACH and Nordics."},
+          {"label": "Partner channel",   "body": "Two systems-integrator partnerships."},
+          {"label": "Multi-year pricing","body": "Discount curve on 2- and 3-year commits."}
+        ]
+      }
+    },
+    {
+      "id": 21,
+      "recipe": "four_up",
+      "content": {
+        "title": "Where we're investing the headcount",
+        "items": [
+          {"label": "Platform",  "body": "+18 engineers split across API, data plane, and infra."},
+          {"label": "Vertical",  "body": "+6 in healthcare-focused product and compliance."},
+          {"label": "EMEA GTM",  "body": "+4 AEs and 2 SEs in DACH and the Nordics."},
+          {"label": "Customer",  "body": "+5 in CS to support the 2024 enterprise cohort."}
+        ]
+      }
+    },
+    {
+      "id": 22,
+      "recipe": "matrix_2x2",
+      "content": {
+        "title": "Segment plays for FY26",
+        "items": [
+          {"label": "Enterprise",  "body": "Renewals up + multi-year discounts. Tighten DLP and SSO story."},
+          {"label": "Mid-market",  "body": "New self-serve tier closes the bottom of the funnel."},
+          {"label": "SMB",         "body": "Move fully to monthly billing. Quarterly customer reviews."},
+          {"label": "Vertical",    "body": "Healthcare compliance kit ships Q2 — flagship vertical play."}
+        ]
+      }
+    },
+    {
+      "id": 23,
+      "recipe": "table_full",
+      "content": {
+        "title": "Quarterly milestones",
+        "table": {
+          "rows": 5, "cols": 3, "has_header": true,
+          "style": "underline_accent",
+          "data": [
+            ["Quarter", "Theme",       "Ship"],
+            ["Q1",      "Platform v2", "Unified API + SDK v3"],
+            ["Q2",      "Self-serve",  "Free tier + usage billing"],
+            ["Q3",      "Vertical",    "Healthcare compliance kit"],
+            ["Q4",      "Enterprise",  "SSO + audit + DLP suite"]
+          ]
+        }
+      }
+    },
+    {
+      "id": 24,
+      "recipe": "text_image_split",
+      "content": {
+        "title": "What it looks like in practice",
+        "text": [
+          "Customer onboards via self-serve in <60s",
+          "Verticalized workflows light up by default",
+          "Enterprise add-ons available without sales touch",
+          "Unified billing across product surfaces"
+        ],
+        "image": {"placeholder": true, "label": "platform screenshot"}
+      },
+      "params": {"image_side": "right"}
+    },
+
+    {
+      "id": 25,
+      "recipe": "cta_closing",
+      "background": "light_orange",
+      "content": {
+        "title": "Thank you",
+        "cta": {"label": "Discussion"},
+        "contact": "board@mercer-analytics.example"
+      }
+    }
+  ]
+}
