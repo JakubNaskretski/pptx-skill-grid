@@ -204,19 +204,43 @@ For each batch:
   1. **Compose** each slide as a full JSON spec (recipe + content +
      optional params/background). See plan.schema.json for the shape.
   2. **Save** each one: `/tmp/slide_N.json` (where N is the slide id).
-  3. **Validate** each one — run the actual command:
+  3. **Validate** each one:
        python reader.py validate-slide /tmp/slide_N.json
-     Capture the output.
   4. **Fix errors.** If `ok: false`, revise the slide and re-validate
      until clean.
   5. **Append** the validated slides to a running `/tmp/plan.json`.
-  6. **Report** to the user with the actual paths:
-       "Batch 2 (slides 4-6) ready:
-          - /tmp/slide_4.json — validate-slide: ok
-          - /tmp/slide_5.json — validate-slide: ok, 1 warning (text overflow)
-          - /tmp/slide_6.json — validate-slide: ok
-        Continue?"
-  7. **Wait** for batch acceptance before next batch.
+  6. **Render the in-progress preview** so the user can SEE what's
+     built so far:
+       python render.py /tmp/plan.json /tmp/preview.pptx
+     This produces a real `.pptx` of the deck so far. The user opens it,
+     reviews visually, gives feedback on actual rendered slides — not
+     on JSON specs.
+  7. **Report** to the user with content inline + paths:
+
+       "Batch 2 ready — preview: /tmp/preview.pptx (open to see slides 1-6).
+
+          Slide 4 — title_bullets — "Macro softened in H2"
+            • Industry growth fell to 3%
+            • Enterprise budgets tightened
+            • Win rates held flat
+            [/tmp/slide_4.json — validate-slide: ok]
+
+          Slide 5 — chart_with_takeaway — "Sector decelerated; we held growth"
+            Column chart, industry vs us, Q1-Q4
+            Takeaway: 3 bullets
+            [/tmp/slide_5.json — validate-slide: ok, 1 minor warning]
+
+          Slide 6 — single_metric — "Total contract value, FY25"
+            $23.8M hero, +24% YoY caption
+            [/tmp/slide_6.json — validate-slide: ok]
+
+        Open the preview and let me know what to revise, or 'continue'
+        for the next batch."
+
+  8. **Wait** for batch acceptance before next batch.
+
+The preview.pptx gets overwritten each batch with the cumulative deck —
+user always has the current state to open and review.
 
 ### Phase 4 — Polish
 - **Save** the final assembled `/tmp/plan.json`.
@@ -224,12 +248,18 @@ For each batch:
 - **Address errors.** Re-validate.
 - **Report:** "validate-plan: ok=true. Path: /tmp/plan.json."
 
-### Phase 5 — Render
+### Phase 5 — Final render
+- The preview.pptx the user has been reviewing already IS a real
+  rendered deck. This phase just produces the canonical final file.
 - **Run:** `python render.py /tmp/plan.json /tmp/out.pptx`
-  (from inside the skill/ working directory)
-- **Capture** the output path. The deck file must exist on disk.
-- **Your final deliverable** is the actual `.pptx` file. Tell the user
-  the path: "Done — final deck: /tmp/out.pptx (12 slides, …). …"
+- **Capture** the output path.
+- **Your final deliverable** is `/tmp/out.pptx`. Tell the user:
+    "Done — final deck: /tmp/out.pptx (12 slides, X image slots filled,
+     Y speculative asset_ids pending). …"
+- Whether the user can DOWNLOAD that file depends on the platform
+  (Code Interpreter exposes it automatically; other platforms may
+  require a separate step). Mention the path; let the platform handle
+  delivery.
 
 Don't proceed if a transition gate isn't met (e.g. outline not approved,
 validate-slide returning errors). Refuse yourself and re-ask / re-validate.
