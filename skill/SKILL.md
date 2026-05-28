@@ -211,9 +211,12 @@ For every image slot:
 
 1. `python reader.py find-asset --kind <kind> --tags <t1,t2>`
    (defaults to bundled `assets/`; pass a path positionally to override).
-2. If `count == 0`, retry without tags (one broadening step). The tool
-   does this for you and sets `broadened: true`.
-3. If still empty: pick the right fallback (see below).
+2. If `count == 0`, try other queries — different tag combinations,
+   different `--kind`, or no tags. Chain multiple `find-asset` calls
+   in a single turn as needed; don't artificially stop at one attempt.
+   (The tool also auto-broadens without tags on its own and reports
+   `broadened: true` when it does so.)
+3. If nothing matches after a few queries, pick a fallback (see below).
 4. Among the shortlist, pick by `description` text fit to the slide topic.
    Optionally run `check-asset-fit` to filter aspect-incompatible
    candidates.
