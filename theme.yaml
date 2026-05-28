@@ -11,7 +11,7 @@ palette:
   text_inverse:   "#FFFFFF"
 
   # Accent oranges (charts, tables, emphasis)
-  accent_primary:   "#FD5108" # 253-81-8    — strongest accent
+  accent_primary:   "#FC5108" # 252-81-8    — strongest accent (matches source deck exactly)
   accent_secondary: "#FE7C39" # 254-124-57  — medium; section numerals
   accent_tertiary:  "#FFAA72" # 255-170-114 — light accent / soft fills
 

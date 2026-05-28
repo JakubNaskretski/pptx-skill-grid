@@ -414,48 +414,49 @@ def render_chart(slide, ctx: Context, rect: dict, content: Any,
 
 
 TABLE_STYLES = {
-    # header_accent: orange header band with white text. Body cells plain.
-    # Thin orange line below header and between body rows.
+    # All values calibrated against the source brand deck. All table text
+    # uses Arial (body_font) — source uses theme minor font (+mn-lt = Arial)
+    # for both header and body, just bold-weight differentiates header.
+    #
+    # Slide 3 source: orange header band, plain body, no dividers.
     "header_accent": {
         "header_bg":   "accent_primary",
-        "header_fg":   "text_inverse",
+        "header_fg":   "text_primary",      # black on orange (source: schemeClr:tx1)
         "body_bg":     None,
         "body_fg":     "text_primary",
         "first_col_bg": None,
         "first_col_fg": None,
         "header_size": 14,
         "body_size":   12,
-        "row_divider": "accent_primary",   # line below header AND every body row
     },
-    # zebra_neutral: alternating light-grey body rows. Plain header with
-    # orange underline to mark it. No row dividers (zebra does the separation).
+    # Slide 4 source: no header bg; alternating grey body rows.
     "zebra_neutral": {
         "header_bg":   None,
         "header_fg":   "text_primary",
-        "body_bg_a":   "tints.grey_30",     # zebra-specific override
-        "body_bg_b":   None,
+        "body_bg_a":   "tints.grey_30",     # zebra A (matches source DFE3E6)
+        "body_bg_b":   None,                # zebra B (white)
         "body_fg":     "text_primary",
         "first_col_bg": None,
         "first_col_fg": None,
         "header_size": 14,
         "body_size":   12,
-        "header_underline": "accent_primary",
     },
-    # filled_accent: first column orange + black text; other body cells white
-    # + black text. Orange row dividers between rows.
+    # Slide 1 source: first column orange for ALL rows (including header).
+    # Per-cell row dividers: white line on filled cells, accent line on white
+    # cells. The two colors create separators against their respective bg.
     "filled_accent": {
-        "header_bg":   None,
+        "header_bg":   None,                  # first_col_bg applies to header too
         "header_fg":   "text_primary",
         "body_bg":     None,
         "body_fg":     "text_primary",
         "first_col_bg": "accent_primary",
         "first_col_fg": "text_primary",
-        "header_size": 14,
-        "body_size":   12,
-        "row_divider": "accent_primary",
+        "header_size": 12,
+        "body_size":   11,
+        "row_divider_filled":   "background",     # white on orange cells
+        "row_divider_unfilled": "accent_primary", # orange on white cells
     },
-    # filled_neutral: first column grey + black text; other body cells white
-    # + black text. Grey row dividers between rows.
+    # Slide 2 source: first column grey for ALL rows. Per-cell dividers.
     "filled_neutral": {
         "header_bg":   None,
         "header_fg":   "text_primary",
@@ -463,11 +464,14 @@ TABLE_STYLES = {
         "body_fg":     "text_primary",
         "first_col_bg": "tints.grey_30",
         "first_col_fg": "text_primary",
-        "header_size": 14,
-        "body_size":   12,
-        "row_divider": "tints.grey_30",
+        "header_size": 12,
+        "body_size":   11,
+        "row_divider_filled":   "background",     # white on grey cells
+        "row_divider_unfilled": "tints.grey_30",  # grey on white cells
     },
-    # minimal: no fills. Orange underline below header only; no body dividers.
+    # Slide 32 source: nothing explicit; relies on built-in style for visual.
+    # Without that built-in style XML we just keep it truly minimal — bold
+    # header text is the only signal.
     "minimal": {
         "header_bg":   None,
         "header_fg":   "text_primary",
@@ -477,7 +481,6 @@ TABLE_STYLES = {
         "first_col_fg": None,
         "header_size": 14,
         "body_size":   12,
-        "header_underline": "accent_primary",
     },
 }
 
@@ -550,8 +553,11 @@ def render_table(slide, ctx: Context, rect: dict, content: Any,
         is_header = has_header and r == 0
         table.rows[r].height = Inches(header_h_in if is_header else body_h_in)
 
+    # All table text uses Arial (body_font) — source deck does the same.
     body_font = ctx.font_name("body")
-    heading_font = ctx.font_name("heading")
+
+    # Track which cells got a non-None fill (needed for per-cell border colors).
+    cell_was_filled = [[False] * cols for _ in range(rows)]
 
     for r in range(rows):
         for c in range(cols):
@@ -566,36 +572,35 @@ def render_table(slide, ctx: Context, rect: dict, content: Any,
             p.alignment = PP_ALIGN.LEFT
             run = p.add_run()
             is_header = has_header and r == 0
-            is_first_col = (c == 0) and not is_header
+            is_first_col = (c == 0)
+
+            # first_col_bg (when set) applies to ALL rows including header.
+            # Source deck slide 1: first col is orange in rows 0, 1, 2, …
+            first_col_active = is_first_col and style.get("first_col_bg") is not None
 
             # Choose fg / bg / size
-            if is_header:
+            if first_col_active:
+                fg_key = style.get("first_col_fg") or style["body_fg"]
+                size_pt = style["header_size"] if is_header else style["body_size"]
+                bg_key = style["first_col_bg"]
+            elif is_header:
                 fg_key = style["header_fg"]
                 size_pt = style["header_size"]
                 bg_key = style.get("header_bg")
-                use_heading_font = True
-            elif is_first_col and style.get("first_col_bg") is not None:
-                fg_key = style.get("first_col_fg") or style["body_fg"]
-                size_pt = style["body_size"]
-                bg_key = style["first_col_bg"]
-                use_heading_font = False
             else:
                 fg_key = style["body_fg"]
                 size_pt = style["body_size"]
-                # zebra mode uses body_bg_a / body_bg_b alternating; other styles
-                # use a single body_bg.
                 if "body_bg_a" in style:
                     body_row_idx = r - (1 if has_header else 0)
                     bg_key = (style["body_bg_a"] if body_row_idx % 2 == 0
                               else style["body_bg_b"])
                 else:
                     bg_key = style.get("body_bg")
-                use_heading_font = False
 
             _set_run(
                 run,
                 text=cell_text,
-                font=heading_font if use_heading_font else body_font,
+                font=body_font,
                 size_pt=size_pt,
                 bold=is_header,
                 color_hex=ctx.hex(fg_key),
@@ -607,25 +612,22 @@ def render_table(slide, ctx: Context, rect: dict, content: Any,
             else:
                 fill.solid()
                 fill.fore_color.rgb = ctx.rgb(bg_key)
+                cell_was_filled[r][c] = True
 
-    # Borders: row dividers, header underline.
-    divider_color = style.get("row_divider")
-    header_underline = style.get("header_underline")
-    for r in range(rows):
-        is_header = has_header and r == 0
-        is_last = (r == rows - 1)
-        if is_header and header_underline:
+    # Per-cell row dividers (filled_accent / filled_neutral pattern).
+    div_filled = style.get("row_divider_filled")
+    div_unfilled = style.get("row_divider_unfilled")
+    if div_filled or div_unfilled:
+        for r in range(rows):
+            is_last = (r == rows - 1)
+            if is_last:
+                continue  # no border below the last row
             for c in range(cols):
+                color_key = div_filled if cell_was_filled[r][c] else div_unfilled
+                if color_key is None:
+                    continue
                 _set_cell_bottom_border(table.cell(r, c),
-                                        ctx.hex(header_underline), width_pt=1.0)
-        elif divider_color and not is_last:
-            for c in range(cols):
-                _set_cell_bottom_border(table.cell(r, c),
-                                        ctx.hex(divider_color), width_pt=1.0)
-        elif is_header and divider_color:
-            for c in range(cols):
-                _set_cell_bottom_border(table.cell(r, c),
-                                        ctx.hex(divider_color), width_pt=1.0)
+                                        ctx.hex(color_key), width_pt=1.0)
 
 
 def render_quote(slide, ctx: Context, rect: dict, content: Any,
