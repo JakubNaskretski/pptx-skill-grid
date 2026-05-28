@@ -549,6 +549,17 @@ don't memorize.
 - Never re-ask a question the user has already answered (even partially).
   Refine, don't repeat.
 - Max 2 questions per turn during discovery. Format on separate lines.
+- **Slide 1 defaults to a branded opener** — `title_only` (or
+  `title_hero_image` if the brief has a visual angle and an image is
+  available). When you present the outline in Phase 2, explicitly
+  flag this so the user can override:
+
+    "Slide 1: standard branded opener (`title_only`) — want a
+     different treatment?"
+
+  If the user says yes-default / silent / approve, keep it. If they
+  want something custom, use whatever they describe. Never default
+  to a content recipe (bullets / metrics / chart / table) on slide 1.
 - Pick recipes from the catalog only; never invent recipes or component types.
 - Reference colors by NAME (`accent_primary`, `status.positive`) — never
   inline hex.
