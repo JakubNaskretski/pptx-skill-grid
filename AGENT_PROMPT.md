@@ -306,6 +306,22 @@ The catalog has ~10 visually distinct recipes — image-bearing
 A 10+ slide deck with zero image-bearing or hero-style recipes is
 probably wrong.
 
+### The closing slide isn't filler
+
+Don't default to "Thank you / Questions / contact@email" every time —
+that's exactly the same closing for every deck regardless of what it's
+about. The closing is the last chance to drive whatever action you
+defined in the brief's purpose. Make it specific.
+
+  Decision deck → "Decisions needed by [date]" + decision-maker contact
+  Fundraise   → "Let's talk" / "Next steps" + investor email
+  Status update → "Q&A" or specific asks + relevant approvers
+  Tutorial    → "What to do next" + resource links
+  Quarterly    → "Discussion" + presenter contact
+
+Look at `brief.purpose`. The closing should restate the action being
+asked of the audience, not just say goodbye.
+
 ### Content sizing — keep values within their cells
 
 The most overflow-prone components:
