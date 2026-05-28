@@ -303,10 +303,39 @@ Use this only when:
 For anything the user will want to fill later, use a speculative
 `asset_id` instead.
 
+### Text budgets — write within them on the first pass
+
+Every type level has a typical cell footprint and a typical text
+budget. Write to the soft column on the first pass and you'll rarely
+need to re-measure; the hard column is where `validate-slide` starts
+flagging overflow.
+
+| Type level | Size · font | Soft budget | Hard ceiling | Where it appears |
+|---|---|---|---|---|
+| `section_number` | 350 pt · body (Arial) | 2 chars (`"01"` … `"99"`) | 3 chars | `section_divider` numeral |
+| `mega_metric` | 200 pt · body | 5 chars (`"$1.8B"`) | 7 chars | `single_metric` value, `size="mega"` |
+| `hero_metric` | 150 pt · body | 6 chars (`"$12.4M"`) | 8 chars | `single_metric` value, default size |
+| `numbered_item` | 115 pt · body | 2 chars (`"01"`) | 3 chars | `numbered_list_6up` number |
+| `statement` | 66 pt · heading (Georgia) | 12 words | 18 words | `big_statement` |
+| `sub_metric` | 66 pt · body | 9 chars (`"+200bps"`) | 12 chars | `single_metric.sub_value`, metric delta |
+| `h1` | 48 pt · heading | 7 words | 10 words | Cover title, `title_hero_image` title |
+| `metric_value` | 48 pt · heading | 6 chars | 8 chars | `metric_strip` individual values |
+| `h2` | 28 pt · heading | 8 words | 12 words | Section labels, body slide titles |
+| `quote` | 28 pt · heading | 16 words | 24 words | `quote.text` |
+| `h3` | 18 pt · heading | 8 words | 14 words | Card labels, sub-headings |
+| `body` | 15 pt · body | 12 words/bullet · 4 bullets | 18 words · 6 bullets | Most prose, card bodies |
+| `metric_label` | 12 pt · body | 4 words | 6 words | Under a metric value |
+| `caption` | 11 pt · body | 10 words | 16 words | Footer attribution, fine print |
+
+All numbers are conservative — actual fit depends on the cell width
+(every recipe allocates a different rect) and the specific glyphs (an
+"M" eats more width than an "i"). Use these as drafting targets;
+`measure-text` and `validate-slide` are the source of truth.
+
 ### Refining text on a slide
 
-Draft text first, measure it, shorten if it overflows. Re-measure. Don't
-upsize text — every type level resolves against the theme; changing it
+If a draft overflows after first measure: shorten the text. Do **not**
+upsize — every type level resolves against the theme; changing it
 breaks the deck's consistency.
 
 If the user asks "tighten this" or "less corporate", rewrite in
@@ -353,17 +382,48 @@ Hand the path to the rendered `.pptx` to the user as your final output.
 
 ## Recipe catalog
 
-23 recipes. Each takes a `content` dict (and optional `params`) and emits
+26 recipes. Each takes a `content` dict (and optional `params`) and emits
 component placements on the grid. Inspect signatures via:
 
 ```bash
 python reader.py list-recipes
-python reader.py recipe-signature <name>
+python reader.py recipe-signature <name>     # now ships with copy-pasteable example
 python reader.py preview-recipe <name> --content '<json>' [--params '<json>']
 ```
 
-Use `preview-recipe` to see exactly what cells a recipe occupies before
-committing it in a plan.
+Every `recipe-signature` output carries an `example` field — a minimal
+valid `content` (and `params`) payload you can copy-paste-modify
+instead of inferring the JSON shape from scratch.
+
+### Quick decision tree — goal → recipe
+
+| What you want on the slide | Recipe(s) |
+|---|---|
+| Cover / opener (text-only) | `title_only` |
+| Cover / opener (with hero image) | `title_hero_image` |
+| Section break | `section_divider` |
+| 1 hero KPI dominating the slide | `single_metric` (use `size: "mega"` for max) |
+| 2–4 KPIs side by side | `metric_strip` |
+| 1 chart, full width | `chart_full` |
+| 1 chart + commentary sidebar | `chart_with_takeaway` |
+| Bullet content | `title_bullets` |
+| Numbered TOC / agenda (1–10) | `agenda` |
+| 6 items with big numerals (steps, principles) | `numbered_list_6up` |
+| Two parallel columns of text | `two_col_text` |
+| Labelled vs / before-after | `comparison` |
+| 2 image-and-text cards | `two_card_row` |
+| 3 image-and-text cards | `three_card_row` |
+| 3 / 4 / 6 icon + label + body | `three_up` / `four_up` / `six_up` |
+| 4 cells in a 2×2 grid | `matrix_2x2` |
+| Team, ≤4 across one row | `team_strip` |
+| Team, exactly 4 with bios | `team_grid_2x2` |
+| Big declarative statement | `big_statement` |
+| Quote / testimonial | `quote` |
+| Closing / CTA / thank-you | `cta_closing` |
+| Title + full-width table | `table_full` |
+| Title + callout + table (right half) | `table_with_callout` |
+
+After picking, run `recipe-signature <name>` for the exact JSON shape and a working example. Use `preview-recipe` to see exactly what cells a recipe occupies before committing it in a plan.
 
 | Recipe | Content shape | When |
 |---|---|---|

@@ -330,16 +330,51 @@ tool — re-check.
 
 ### Decorations are automatic
 
-Logo, page number, and presentation title appear on every non-cover
-slide AUTOMATICALLY at render time. They're configured at the org
-level — not your concern. Cover slide (id=1) skips decorations by
-design.
+Greyish "Company · Deck title" appears at the footer-left, page number
+at the footer-right, on every non-cover slide AUTOMATICALLY at render
+time. They're configured at the org level — not your concern. Cover
+slide (id=1, or the template opener) skips decorations by design.
 
   - Don't place a "logo" component, "page N / M" text, or a header
     with the deck title on any slide. Render does this.
   - If the user asks where decorations come from, briefly explain:
     "configured at the org level, applied automatically at render."
     Don't go further.
+
+### Where each visual element on a rendered slide comes from
+
+When you or the user spot something on a slide and want to know "where
+did THAT come from?", walk this list. It's also the z-order — top of
+list = bottom of stack.
+
+  1. **Slide master** of the loaded `.pptx`. If a template opener is
+     configured, every body slide inherits whatever is on the
+     template's master (footer logos, watermarks, hardcoded company
+     text in any colour — frequently black). Render cannot strip this;
+     the user has to edit the template's master in PowerPoint
+     (View → Slide Master → delete the master shape).
+  2. **Slide layout placeholders.** PowerPoint's default layouts carry
+     empty "Add title" / slide-number / footer placeholders that bleed
+     onto body slides. `render.py` strips these automatically — you
+     should never see them. If you do, report it as a render.py bug.
+  3. **Background fill.** Driven by `slide.background` (`white`,
+     `light_grey`, `light_orange`). Full-bleed rect at the bottom of
+     the z-order.
+  4. **Recipe-rendered content.** Everything you wrote in `plan.json`
+     — titles, bullets, metrics, charts, images. This is the body of
+     the slide and what you actually control.
+  5. **Decorations (footer strip).** `_apply_decorations` adds the
+     greyish `Company · Deck title` on the left + `N / M` page number
+     on the right. ALWAYS grey (theme `text_secondary`, roughly
+     `#646E73`). Never black, never coloured.
+
+Quick triage when something looks off:
+
+  - **Black or coloured text in the footer** you didn't write → #1
+    (template master). Tell the user to clean the template.
+  - **"Add title" or stray "0"** anywhere → #2 (render.py bug; report).
+  - **Greyish text in the footer** → #5 (us, working as intended).
+  - **Anything in the body area** → #4 (your `plan.json`).
 
 ### Opener slides — covers and section dividers carry more weight
 
