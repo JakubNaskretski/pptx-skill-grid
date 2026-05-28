@@ -10,8 +10,9 @@ Asset binary resolution follows the two-folder layout:
   - raster → expected in EXTERNAL_ASSETS_DIR (outside the skill; ../assets-external
              by default). Falls back to skill/assets/ for the logo case.
 
-SVG embedding uses native vector + PNG fallback (asvg:svgBlip extension).
-PowerPoint 2016+ renders the actual vector; older viewers see the PNG.
+SVG handling: cairosvg rasterizes the SVG to a high-res PNG (2048px wide)
+which is embedded via the standard picture path. Reliable in every viewer;
+visually identical to vector at typical slide sizes.
 
 Usage:
   python splice_assets.py in.pptx -o out.pptx
@@ -48,11 +49,8 @@ _SUPPORTED_VECTOR = {".svg"}
 DEFAULT_SKILL_ASSETS = Path(__file__).parent / "assets"
 DEFAULT_EXTERNAL_ASSETS = Path(__file__).parent.parent.parent / "assets-external"
 
-# OOXML namespaces for native SVG embedding.
+# OOXML namespace (used only if we ever revisit native vector embed).
 _NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main"
-_NS_R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-_NS_ASVG = "http://schemas.microsoft.com/office/drawing/2016/SVG/main"
-_SVG_EXT_URI = "{96DAC541-7B7A-43D3-8B79-37D633B846F1}"
 
 
 # ---------- asset index ----------
@@ -174,56 +172,24 @@ def _rasterize_svg_to_png(svg_path: Path, target_w_px: int = 2048) -> bytes:
     return buf.getvalue()
 
 
-def _embed_svg_native(slide, svg_path: Path, left, top, width, height):
-    """Add a picture shape that renders as native SVG (PowerPoint 2016+)
-    with a PNG fallback. Returns the python-pptx Picture shape.
+def _embed_svg(slide, svg_path: Path, left, top, width, height):
+    """Rasterize an SVG to high-res PNG and embed it via add_picture.
 
-    Mechanism: add the PNG fallback via the normal add_picture path
-    (python-pptx writes /ppt/media/imageN.png and an image relationship),
-    then graft in:
-      - A second image part with the raw SVG bytes and content_type
-        "image/svg+xml" (relate it to the slide → get a second rId).
-      - An <a:extLst><a:ext uri="..."><asvg:svgBlip r:embed="rIdSvg"/></a:ext>
-        block inside the picture's <a:blip>.
+    Returns the python-pptx Picture shape.
+
+    Earlier versions of this function ALSO embedded the original SVG
+    bytes as an asvg:svgBlip extension so PowerPoint 2016+ would render
+    the picture as native vector. That path proved fragile across
+    python-pptx versions — the ImagePart + relate_to dance for a
+    non-raster content type, plus the namespace serialization for the
+    extension XML, occasionally produced .pptx files PowerPoint refused
+    to open. The rasterized PNG looks identical at typical slide sizes
+    (we render at 2048px wide) and is reliable in every viewer.
     """
-    from lxml import etree
-    from pptx.opc.constants import RELATIONSHIP_TYPE as RT
-    from pptx.opc.packuri import PackURI
-    from pptx.parts.image import ImagePart
-
-    # 1. Rasterize for the PNG fallback.
     png_bytes = _rasterize_svg_to_png(svg_path)
-
-    # 2. Add the PNG normally — python-pptx handles content type + rel.
-    pic = slide.shapes.add_picture(
+    return slide.shapes.add_picture(
         io.BytesIO(png_bytes), left, top, width=width, height=height,
     )
-
-    # 3. Create an ImagePart for the SVG itself.
-    svg_bytes = svg_path.read_bytes()
-    package = slide.part.package
-    used_partnames = {p.partname for p in package.iter_parts()}
-    n = 1
-    while True:
-        partname = PackURI(f"/ppt/media/image_svg_{n}.svg")
-        if partname not in used_partnames:
-            break
-        n += 1
-    svg_part = ImagePart(partname, "image/svg+xml", svg_bytes, package)
-
-    # 4. Relate slide → SVG part. python-pptx tracks the rel for save.
-    rId_svg = slide.part.relate_to(svg_part, RT.IMAGE)
-
-    # 5. Inject <a:extLst><a:ext uri="..."><asvg:svgBlip r:embed=...></...>
-    #    into the picture's <a:blip>.
-    blip = pic._element.find(f".//{{{_NS_A}}}blip")
-    if blip is not None:
-        extLst = etree.SubElement(blip, f"{{{_NS_A}}}extLst")
-        ext = etree.SubElement(extLst, f"{{{_NS_A}}}ext", uri=_SVG_EXT_URI)
-        svg_blip = etree.SubElement(ext, f"{{{_NS_ASVG}}}svgBlip")
-        svg_blip.set(f"{{{_NS_R}}}embed", rId_svg)
-
-    return pic
 
 
 # ---------- per-slide splice ----------
@@ -319,7 +285,7 @@ def _insert_asset(slide, spec: dict) -> None:
 
     if fit_mode == "fill":
         if is_svg:
-            pic = _embed_svg_native(slide, abs_path, left, top, w, h)
+            pic = _embed_svg(slide, abs_path, left, top, w, h)
         else:
             pic = slide.shapes.add_picture(
                 str(abs_path), left, top, width=w, height=h,
@@ -334,7 +300,7 @@ def _insert_asset(slide, spec: dict) -> None:
     # "contain" — letterbox preserving aspect, centered in slot.
     ox, oy, new_w, new_h = _letterbox_rect(w, h, img_w, img_h)
     if is_svg:
-        _embed_svg_native(slide, abs_path, left + ox, top + oy, new_w, new_h)
+        _embed_svg(slide, abs_path, left + ox, top + oy, new_w, new_h)
     else:
         slide.shapes.add_picture(
             str(abs_path), left + ox, top + oy, width=new_w, height=new_h,
