@@ -1,23 +1,19 @@
 """section_divider — big orange numeral + section label.
 
-Layout varies by alignment. Number cell is 9 rows (2-10) tall so the
-300pt Georgia numeral fits with vertical headroom (no overflow into
-label below). word_wrap is disabled on section_number in the heading
-renderer so it never wraps to two lines.
+Number cell is 10 rows tall (rows 1-10) so the 350pt Georgia numeral fits
+with vertical headroom. word_wrap is disabled on section_number in the
+heading renderer so it never wraps to two lines.
 
 content:
   number      (str|int, required)         use single digits — they sit
-                                          better at 300pt than zero-padded
+                                          better at 350pt than zero-padded
   label       (str, required)
   alignment   ('right' default | 'left' | 'center')
 
-Layouts:
-  right:  number rows 2-10 cols 9-11 (right-aligned, inset 1 col from edge)
-          label  rows 11-12 cols 1-8 bottom-left
-  left:   number rows 2-10 cols 2-4  (left-aligned, inset 1 col from edge)
-          label  rows 11-12 cols 5-12 bottom-right
-  center: number rows 2-10 cols 5-8  (centered)
-          label  rows 11-12 cols 1-12 centered
+Layouts (all alignments use cell rows 1-10 for number, rows 11-12 for label):
+  right:  number cols 9-11 right-aligned; label cols 1-8 bottom-left
+  left:   number cols 2-4 left-aligned;   label cols 5-12 bottom-right
+  center: number cols 5-8 centered;       label cols 1-12 centered
 """
 
 from __future__ import annotations
@@ -35,7 +31,7 @@ def build(content: dict, **params) -> list[dict]:
                 "level": "section_number",
                 "alignment": "left",
                 "color_key": "accent_secondary",
-                "grid": {"row": 2, "col": 2, "row_span": 9, "col_span": 3},
+                "grid": {"row": 1, "col": 2, "row_span": 10, "col_span": 3},
                 "content": str(number),
             },
             {
@@ -47,16 +43,13 @@ def build(content: dict, **params) -> list[dict]:
             },
         ]
     if alignment == "center":
-        # Center variant: number sits in rows 1-9 (was 2-10) so the
-        # combined number+label composition is balanced higher on the slide
-        # rather than feeling bottom-anchored.
         return [
             {
                 "type": "heading",
                 "level": "section_number",
                 "alignment": "center",
                 "color_key": "accent_secondary",
-                "grid": {"row": 1, "col": 5, "row_span": 9, "col_span": 4},
+                "grid": {"row": 1, "col": 5, "row_span": 10, "col_span": 4},
                 "content": str(number),
             },
             {
@@ -74,7 +67,7 @@ def build(content: dict, **params) -> list[dict]:
             "level": "section_number",
             "alignment": "right",
             "color_key": "accent_secondary",
-            "grid": {"row": 2, "col": 9, "row_span": 9, "col_span": 3},
+            "grid": {"row": 1, "col": 9, "row_span": 10, "col_span": 3},
             "content": str(number),
         },
         {

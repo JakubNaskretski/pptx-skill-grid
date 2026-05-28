@@ -50,7 +50,8 @@ fonts:
 # "font" keys into the fonts: map above.
 type_scale:
   section_number:
-    size_pt: 300
+    # Matches the source brand deck (Section Header layouts use 350pt).
+    size_pt: 350
     weight: 400              # Georgia regular at this size already reads huge
     line_height: 1.00
     font: heading
@@ -101,6 +102,29 @@ type_scale:
     # next to 0/1/2/6/8/$/M. Arial has lining figures so all digits sit on the
     # same baseline.
     size_pt: 150
+    weight: 700
+    line_height: 1.00
+    font: body
+  mega_metric:
+    # For single_metric size='mega' — even bigger than hero. Source's "Text
+    # and Large Stat" layout uses 200pt; this is for stats that should
+    # dominate the slide entirely.
+    size_pt: 200
+    weight: 700
+    line_height: 1.00
+    font: body
+  sub_metric:
+    # For single_metric.sub_value — a secondary stat below the hero number
+    # (e.g. "$23.8M" + "+24% YoY" below). Source's "Big Data" layout uses
+    # 66pt for this.
+    size_pt: 66
+    weight: 700
+    line_height: 1.05
+    font: body
+  numbered_item:
+    # For numbered_list_6up's big numerals — source's "Six Content Six
+    # Numbers" layout uses 115pt for each item's number.
+    size_pt: 115
     weight: 700
     line_height: 1.00
     font: body

@@ -186,11 +186,13 @@ RECIPE_SIGNATURES = {
         "content": {
             "title": "str (optional)",
             "value": "str (required)",
-            "caption": "str (optional)",
+            "sub_value": "str (optional, 66pt secondary stat directly below)",
+            "caption": "str (optional, footer)",
             "body": "str|list (optional, supporting copy on the right)",
+            "size": "'hero' (default, 150pt) | 'mega' (200pt — dominates slide)",
         },
         "params": {},
-        "use_when": "One hero KPI dominates the slide. For 2-4 KPIs use metric_strip instead.",
+        "use_when": "One hero KPI dominates the slide. For 2-4 KPIs use metric_strip instead. Use size='mega' when the stat alone is the headline.",
     },
     "big_statement": {
         "content": {

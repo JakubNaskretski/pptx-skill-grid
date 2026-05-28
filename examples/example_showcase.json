@@ -269,12 +269,12 @@
       "content": {
         "title": "FY26 — six bets",
         "items": [
-          {"label": "Platform v2",       "body": "Unified API; deprecate v1 endpoints by Q3."},
-          {"label": "Self-serve tier",   "body": "Free + usage-based; launch in Q1."},
-          {"label": "Vertical packs",    "body": "Healthcare-specific compliance kit."},
-          {"label": "EMEA expansion",    "body": "Add 4 AEs in DACH and Nordics."},
-          {"label": "Partner channel",   "body": "Two systems-integrator partnerships."},
-          {"label": "Multi-year pricing","body": "Discount curve on 2- and 3-year commits."}
+          {"label": "Platform",   "body": "Unified API. Deprecate v1 by Q3."},
+          {"label": "Self-serve", "body": "Free + usage tier. Ship in Q1."},
+          {"label": "Verticals",  "body": "Healthcare compliance kit."},
+          {"label": "EMEA",       "body": "Four AEs in DACH and Nordics."},
+          {"label": "Partners",   "body": "Two SI relationships signed."},
+          {"label": "Pricing",    "body": "Discount on 2- and 3-year commits."}
         ]
       }
     },
