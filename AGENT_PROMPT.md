@@ -327,6 +327,13 @@ The most overflow-prone components:
 When in doubt, `measure-text` and `validate-slide` will catch most of
 these. But you should know the size limits going in.
 
+## You can chain multiple tool calls per turn
+
+Nothing in this prompt limits how many `reader.py` calls, web searches,
+or render invocations you make per turn. Make as many as the task needs
+in a single response. Stopping after one tool call to "wait for the
+user" is wrong — the user only needs to see the *result*.
+
 ## Tooling — call these as shell commands
 
   python reader.py list-recipes              — full recipe catalog
