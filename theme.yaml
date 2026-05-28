@@ -55,13 +55,16 @@ type_scale:
     # for the same lining-figures reason as hero_metric: Georgia's
     # old-style figures (3/4/5/7/9 have descenders) make multi-digit
     # numerals look misaligned at this size.
+    # Weight 400 (regular) — source's b="0" on all big number runs.
     size_pt: 350
-    weight: 700
+    weight: 400
     line_height: 1.00
     font: body
   h1:
+    # Source uses bold=0 for 48pt titles. Sheer size + Georgia's serif
+    # forms read as title without needing bold.
     size_pt: 48
-    weight: 700
+    weight: 400
     line_height: 1.10
     font: heading
   h2:
@@ -86,7 +89,7 @@ type_scale:
     font: body
   metric_value:
     size_pt: 48
-    weight: 700
+    weight: 400              # regular — source's big numbers are bold=0
     line_height: 1.00
     font: heading
   metric_label:
@@ -104,9 +107,9 @@ type_scale:
     # Uses 'body' (Arial) intentionally because Georgia uses old-style figures
     # — digits 3/4/5/7/9 have descenders below the baseline and look misaligned
     # next to 0/1/2/6/8/$/M. Arial has lining figures so all digits sit on the
-    # same baseline.
+    # same baseline. Weight 400 (regular) — matches source bold=0.
     size_pt: 150
-    weight: 700
+    weight: 400
     line_height: 1.00
     font: body
   mega_metric:
@@ -114,7 +117,7 @@ type_scale:
     # and Large Stat" layout uses 200pt; this is for stats that should
     # dominate the slide entirely.
     size_pt: 200
-    weight: 700
+    weight: 400
     line_height: 1.00
     font: body
   sub_metric:
@@ -122,21 +125,21 @@ type_scale:
     # (e.g. "$23.8M" + "+24% YoY" below). Source's "Big Data" layout uses
     # 66pt for this.
     size_pt: 66
-    weight: 700
+    weight: 400
     line_height: 1.05
     font: body
   numbered_item:
     # For numbered_list_6up's big numerals — source's "Six Content Six
     # Numbers" layout uses 115pt for each item's number.
     size_pt: 115
-    weight: 700
+    weight: 400
     line_height: 1.00
     font: body
   statement:
     # For big_statement — large declarative text, smaller than section_number,
     # bigger than h1. Centered or left, optional sub-line beneath.
     size_pt: 66
-    weight: 700
+    weight: 400
     line_height: 1.10
     font: heading
 
