@@ -5,6 +5,11 @@ Two things to configure in your agent platform:
 1. **Model parameters** — what to set, with rationale
 2. **System instructions** — ready-to-paste text
 
+The agent's runtime needs access to the `skill/` folder in this repo (mount
+/ clone / upload — depending on platform). Its working directory should be
+`skill/`. Everything the agent needs to compose, validate, and render is
+inside that one folder.
+
 If your platform doesn't expose a particular parameter, leave it at the
 provider default. The recommended values below are the *useful* settings;
 anything missing isn't a dealbreaker.

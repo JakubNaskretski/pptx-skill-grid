@@ -87,50 +87,71 @@ descriptions of assets).
 
 ## Asset workflow
 
-Binaries live **outside** the skill bundle (storage / privacy).
+Binaries live in `skill/assets/` (or pass `--assets` to override). The
+flow is:
 
 ```bash
-# 1) Once per asset folder — generates sidecar YAMLs alongside binaries
-python describe_assets.py /path/to/assets/
+cd skill
+
+# 1) Drop image binaries into assets/. Generate sidecars:
+python describe_assets.py assets/
 
 # 2) Agent reads the sidecars (descriptions, tags, dims) and writes
 #    plan.json with asset_id refs in image components
 
-# 3) Render produces a .pptx with image placeholders (no binaries embedded)
+# 3) Render — auto-splices binaries from assets/ if sidecars exist;
+#    leaves placeholders otherwise.
 python render.py plan.json out.pptx
 
-# 4) Splice the binaries in — produces the final shippable .pptx
-python splice_assets.py out.pptx --assets /path/to/assets/ -o final.pptx
+# (Optional) re-splice an existing pptx against a different asset folder
+python splice_assets.py out.pptx --assets /external/path -o final.pptx
 ```
 
-## Repo layout
+If you don't have all the binaries when the agent is composing, the
+agent uses **speculative asset_ids** like `team_photo_q4`. Drop matching
+binaries into `assets/` later and re-run `python render.py` — same plan
+re-renders with the new assets filled in.
+
+## Repo layout — two clear halves
 
 ```
-SKILL.md                 ← agent contract — what the agent reads
-AGENT_SETUP.md           ← model parameters + ready-to-paste system instructions
-README.md                ← this file
-theme.yaml               ← single source of truth for palette / fonts / type scale
-asset_tag_vocab.yaml     ← closed tag list for asset sidecars
-prompts/describe_asset.md← prompt template for vision-LLM asset description
-
-reader.py                ← agent-facing CLI (theme / recipes / toolbelt / validate)
-render.py                ← CLI: plan.json → out.pptx (with image placeholders)
-splice_assets.py         ← CLI: out.pptx + assets/ → final.pptx
-describe_assets.py       ← CLI: assets/ → sidecar YAMLs
-grid.py                  ← cell-rect math
-
-components/              ← drawing primitives + card compound component
-recipes/                 ← 26 parametric layout functions
-toolbelt/                ← deterministic critics (measure_text, grid_audit, …)
-schemas/                 ← brief / outline / plan JSON schemas
-examples/                ← example_plan, example_branded, example_v2,
-                           example_showcase + their JSON plans
-tests/                   ← smoke tests
+.
+├── README.md             ← this file (overview)
+├── AGENT_SETUP.md        ← model parameters + ready-to-paste system instructions
+│                            (you read this, copy from it)
+│
+└── skill/                ← THE SKILL BUNDLE — give this folder to the agent
+    │
+    ├── SKILL.md          ← agent contract (catalog, phases, rules)
+    ├── theme.yaml        ← palette / fonts / type scale (source of truth)
+    ├── asset_tag_vocab.yaml
+    ├── requirements.txt
+    │
+    ├── reader.py         ← agent-facing CLI (theme, recipes, toolbelt, validate)
+    ├── render.py         ← CLI: plan.json → out.pptx (auto-splices assets/)
+    ├── splice_assets.py  ← auto-called by render; manual re-splice path
+    ├── describe_assets.py← generates sidecars for new asset binaries
+    ├── grid.py           ← cell-rect math
+    │
+    ├── components/       ← 12 drawing primitives + card compound component
+    ├── recipes/          ← 26 parametric layout functions
+    ├── toolbelt/         ← 8 deterministic critics
+    ├── schemas/          ← brief / outline / plan JSON schemas
+    ├── prompts/          ← vision-LLM prompt template for asset description
+    │
+    ├── assets/           ← image binaries + sidecars (empty by default)
+    └── examples/         ← reference plan.json files for testing
 ```
+
+**Split logic:**
+
+- Root files (`README.md`, `AGENT_SETUP.md`) are **for you** — read them, copy from them.
+- The `skill/` folder is **the bundle** — give the whole thing to the agent's runtime (mount / upload / clone). The agent's working directory is `skill/`. Everything it needs to compose, validate, and render is inside.
 
 ## Quickstart
 
 ```bash
+cd skill
 pip install -r requirements.txt
 
 # 25-slide narrative showcase exercising most of the surface
