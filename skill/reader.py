@@ -394,6 +394,51 @@ def validate_slide(slide_spec: dict, theme: dict | None = None) -> dict:
                 "details": cs,
             })
 
+    # 6. Metric value overflow check.
+    # metric components render value at 48pt with word_wrap=False, so an
+    # overlong value bleeds horizontally into the neighbor cell. Catch it.
+    from grid import placement_to_rect
+    for idx, p in enumerate(placements):
+        if p.get("type") != "metric":
+            continue
+        content = p.get("content") or {}
+        value = str(content.get("value", "") or "")
+        if not value:
+            continue
+        try:
+            rect = placement_to_rect(p["grid"])
+        except (KeyError, ValueError):
+            continue
+        # Value cell uses full grid-cell width and ~55% of its height
+        value_rect = {
+            "x": rect["x"], "y": rect["y"],
+            "w": rect["w"], "h": rect["h"] * 0.55,
+        }
+        try:
+            m = _measure_text(
+                value, type_level="metric_value", cell_rect=value_rect,
+                canvas_w_in=canvas_w, canvas_h_in=canvas_h, theme=theme,
+            )
+        except KeyError:
+            continue
+        # word_wrap=False on metric values — any horizontal overflow bleeds
+        # into the neighbor cell. Treat chars > chars_per_line as ERROR.
+        if len(value) > m["chars_per_line"]:
+            errors.append({
+                "kind": "metric_value_overflow",
+                "slide_id": slide_id,
+                "component_index": idx,
+                "value": value,
+                "chars": len(value),
+                "max_chars_at_48pt": m["chars_per_line"],
+                "suggestion": (
+                    f"Value '{value}' is {len(value)} chars; cell fits "
+                    f"~{m['chars_per_line']} at 48pt. Shorten "
+                    f"(e.g. '$1.2M' instead of '$1,234,567') or use fewer "
+                    f"metrics in the strip."
+                ),
+            })
+
     return {
         "ok": len(errors) == 0,
         "slide_id": slide_id,
