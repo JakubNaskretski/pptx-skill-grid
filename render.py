@@ -17,9 +17,50 @@ from pathlib import Path
 
 import yaml
 from pptx import Presentation
-from pptx.util import Inches
+from pptx.enum.shapes import MSO_SHAPE
+from pptx.util import Emu, Inches
 
 from components import Context, render_component
+
+
+# Slide background enum → theme color key.
+# white     → palette.background     (#FFFFFF)
+# light_grey → palette.surface       (#EBEBEB)
+# light_orange → tints.orange_60     (#FFE8D4)
+BACKGROUND_COLOR_KEYS = {
+    "white":        "background",
+    "light_grey":   "surface",
+    "light_orange": "tints.orange_60",
+}
+
+
+def _apply_background(slide, ctx: Context, bg_kind: str) -> None:
+    """Paint a full-bleed rect as the slide background.
+
+    python-pptx's slide.background only sets master-inherited fills, which
+    don't always render in viewers; a full-canvas rect is more reliable.
+    """
+    if bg_kind in (None, "white"):
+        return  # default white from the master
+    color_key = BACKGROUND_COLOR_KEYS.get(bg_kind)
+    if not color_key:
+        raise ValueError(f"unknown background: {bg_kind}")
+    canvas_w = Inches(ctx.canvas_w_in)
+    canvas_h = Inches(ctx.canvas_h_in)
+    rect = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, 0, 0, canvas_w, canvas_h)
+    rect.fill.solid()
+    rect.fill.fore_color.rgb = ctx.rgb(color_key)
+    rect.line.fill.background()
+    rect.name = "SLIDE_BACKGROUND"
+    # Send to back: move the bg rect XML to the start of spTree's shape list
+    sp_tree = rect._element.getparent()
+    sp_tree.remove(rect._element)
+    # Find the first non-pictogram shape — insert after nvGrpSpPr/grpSpPr but
+    # before other shapes. The simplest is to insert at index 2 (after the
+    # two required header children).
+    sp_tree.insert(2, rect._element)
+
+
 from recipes import RECIPES
 
 
@@ -36,8 +77,12 @@ def render(plan: dict, theme: dict, out_path: str) -> None:
 
     for slide_spec in plan.get("slides", []):
         slide = prs.slides.add_slide(blank_layout)
-        recipe = slide_spec.get("recipe")
 
+        # Background first so it sits underneath everything.
+        bg = slide_spec.get("background", "white")
+        _apply_background(slide, ctx, bg)
+
+        recipe = slide_spec.get("recipe")
         if recipe == "free":
             placements = slide_spec.get("components") or []
         else:

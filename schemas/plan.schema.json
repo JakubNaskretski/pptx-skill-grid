@@ -17,6 +17,11 @@
         "additionalProperties": false,
         "properties": {
           "id": {"type": "integer", "minimum": 1},
+          "background": {
+            "type": "string",
+            "enum": ["white", "light_grey", "light_orange"],
+            "default": "white"
+          },
           "recipe": {
             "type": "string",
             "enum": [
@@ -28,10 +33,17 @@
               "two_col_text",
               "comparison",
               "metric_strip",
+              "single_metric",
+              "big_statement",
+              "agenda",
+              "numbered_list_6up",
               "chart_with_takeaway",
               "table_full",
               "table_with_callout",
               "three_up",
+              "four_up",
+              "six_up",
+              "matrix_2x2",
               "quote",
               "cta_closing",
               "team_strip",

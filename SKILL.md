@@ -2,7 +2,7 @@
 
 You compose PowerPoint decks by placing **components** (heading, text, image,
 metric, chart, table, …) onto a fixed **12×12 grid** with half-column side
-margins and one-row strips top and bottom. You either call one of 16
+margins and one-row strips top and bottom. You either call one of 23
 **recipes** (parametric layout functions) per slide, or — rarely — compose
 components freely on the grid. The result is `plan.json`, which a separate
 script renders to a real `.pptx`.
@@ -236,7 +236,7 @@ You **do not** run these. You stop at the plan.
 
 ## Recipe catalog
 
-16 recipes. Each takes a `content` dict (and optional `params`) and emits
+23 recipes. Each takes a `content` dict (and optional `params`) and emits
 component placements on the grid. Inspect signatures via:
 
 ```bash
@@ -251,24 +251,47 @@ committing it in a plan.
 | Recipe | Content shape | When |
 |---|---|---|
 | `title_only` | `{title, subtitle?}` | Cover / opener |
-| `section_divider` | `{number, label}` | Between major sections — big orange numeral right, label bottom-left |
+| `section_divider` | `{number, label, alignment?}` | Between major sections. alignment: right (default) / left / center |
 | `title_bullets` | `{title, bullets: [str, …]}` | Bread-and-butter content |
 | `title_hero_image` | `{title, image}` | Single big visual |
-| `text_image_split` | `{title, text, image}` + params `{image_side: left\|right}` | Text + image side by side |
+| `text_image_split` | `{title, text, image}` + params `{image_side}` | Text + image side by side |
 | `two_col_text` | `{title, left, right}` | Parallel text columns, no labels |
 | `comparison` | `{title, left_label, right_label, left_body, right_body}` | Labeled vs / before-after |
-| `metric_strip` | `{title?, metrics: [{value, label, delta?, delta_status?}]}` (2-4) | KPI band |
+| `metric_strip` | `{title?, metrics: [...]}` (2-4) | 2-4 KPIs in a row |
+| `single_metric` | `{title?, value, caption?, body?}` | One hero KPI dominates |
+| `big_statement` | `{statement, sub?, alignment?}` | Large declarative text (~60pt) |
+| `agenda` | `{title?, items: [str]}` (1-10) | Numbered TOC list |
+| `numbered_list_6up` | `{title?, items: [{number?, label, body}]}` (1-6) | 6 numbered cells in 3×2 grid |
 | `chart_with_takeaway` | `{title, chart, takeaway}` | Chart + commentary sidebar |
-| `table_full` | `{title, table}` | Title + full-width table |
-| `table_with_callout` | `{title, callout_heading?, callout_body?, table}` | Branded table layout — callout text on left, table on right |
-| `three_up` | `{title?, items: [{icon_asset_id?, label, body}]}` (3) | Three parallel columns |
+| `table_full` | `{title, table: {..., style?}}` | Full-width branded table |
+| `table_with_callout` | `{title, callout_heading?, callout_body?, table}` | Callout left + table right |
+| `three_up` | `{title?, items: [{icon_asset_id?, label, body}]}` (3) | 3 parallel columns |
+| `four_up` | `{title?, items: [...]}` (4) | 4 parallel columns |
+| `six_up` | `{title?, items: [...]}` (6) | 6 cells in 3×2 grid |
+| `matrix_2x2` | `{title?, items: [{image, label, body?}]}` (4) | Generic 2×2 of image+text cards |
 | `quote` | `{text, attribution?}` | Pull-quote |
-| `cta_closing` | `{title, cta: {label}, contact?}` | Closing / next steps |
-| `team_strip` | `{title?, members: [{photo, name, role, bio?}]}` (1-4) | Up to 4 team members across one row |
-| `team_grid_2x2` | `{title?, members: [{photo, name, role, bio?}]}` (4) | 4 team members in 2×2 grid, photo-left text-right |
+| `cta_closing` | `{title, cta, contact?}` | Closing / next steps |
+| `team_strip` | `{title?, members: [...]}` (1-4) | Team members in a row |
+| `team_grid_2x2` | `{title?, members: [...]}` (4) | Team members in 2×2, photo-left text-right |
 
 Plus the escape hatch: recipe `"free"` with an explicit `components: [...]`
 array. Use only when no recipe fits and you've confirmed with the user.
+
+### Slide backgrounds
+
+Each slide spec accepts an optional `background` enum:
+
+| Value | Color | Use |
+|---|---|---|
+| `white` (default) | #FFFFFF | Standard content slides |
+| `light_grey` | #EBEBEB | Sub-section breaks, supporting / interlude slides |
+| `light_orange` | #FFE8D4 | Cover, section dividers, hero moments |
+
+Example:
+```json
+{"id": 5, "recipe": "section_divider", "background": "light_orange",
+ "content": {"number": "02", "label": "Our approach"}}
+```
 
 ### Table styling
 

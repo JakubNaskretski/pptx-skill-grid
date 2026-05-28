@@ -89,6 +89,19 @@ type_scale:
     weight: 400
     line_height: 1.30
     font: heading
+  hero_metric:
+    # For single_metric — one giant number, takes ~half the slide vertically.
+    size_pt: 160
+    weight: 700
+    line_height: 1.00
+    font: heading
+  statement:
+    # For big_statement — large declarative text, smaller than section_number,
+    # bigger than h1. Centered or left, optional sub-line beneath.
+    size_pt: 60
+    weight: 700
+    line_height: 1.10
+    font: heading
 
 # Grid metrics — used by grid.py.
 # Canvas is 16:9; coordinates are fractional (0..1).
