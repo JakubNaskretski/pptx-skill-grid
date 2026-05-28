@@ -50,11 +50,15 @@ fonts:
 # "font" keys into the fonts: map above.
 type_scale:
   section_number:
-    # Matches the source brand deck (Section Header layouts use 350pt).
+    # Matches the source brand deck (Section Header layouts use 350pt
+    # in a body placeholder, inheriting +mn-lt = Arial). Uses body font
+    # for the same lining-figures reason as hero_metric: Georgia's
+    # old-style figures (3/4/5/7/9 have descenders) make multi-digit
+    # numerals look misaligned at this size.
     size_pt: 350
-    weight: 400              # Georgia regular at this size already reads huge
+    weight: 700
     line_height: 1.00
-    font: heading
+    font: body
   h1:
     size_pt: 48
     weight: 700
