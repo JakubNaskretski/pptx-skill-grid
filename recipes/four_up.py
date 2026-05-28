@@ -34,8 +34,9 @@ def build(content: dict, **params) -> list[dict]:
         body_start_row = 3
 
     col_starts = [1, 4, 7, 10]
-    # 1-row gap between icon_label and body for breathing room.
-    body_offset = 4
+    # No explicit gap row — icon_label rows 3-5, body rows 6-12. The
+    # MIDDLE anchor inside icon_label already provides ~0.80in visual
+    # separation between label center and body top.
     for col, item in zip(col_starts, items):
         placements.append({
             "type": "icon_label",
@@ -49,8 +50,8 @@ def build(content: dict, **params) -> list[dict]:
         placements.append({
             "type": "text",
             "level": "body",
-            "grid": {"row": body_start_row + body_offset, "col": col,
-                     "row_span": 12 - (body_start_row + body_offset) + 1,
+            "grid": {"row": body_start_row + 3, "col": col,
+                     "row_span": 12 - (body_start_row + 3) + 1,
                      "col_span": 3},
             "content": item.get("body", ""),
         })

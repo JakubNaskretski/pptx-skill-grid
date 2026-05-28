@@ -1,7 +1,6 @@
 """big_statement — large declarative text, optional sub-line.
 
-Smaller than section_number (240pt), bigger than h1 (36pt). Uses the
-'statement' type level (60pt). Use for hero/cover-style proclamations:
+Uses the 'statement' type level (66pt). For hero / cover-style proclamations:
 "We're not slowing down." / "$1B in pipeline." / "Three things matter."
 
 content:
@@ -10,8 +9,13 @@ content:
   alignment   ('left' default | 'center')
 
 Layout:
-  statement rows 4-7 cols 1-10 (if left) or 1-12 (if center)
-  sub       rows 8-9 cols 1-10 (if left) or 1-12 (if center)
+  statement rows 3-9 cols 1-12 (left: cols 1-12 still — uses full width
+            for headroom; alignment controls text alignment, not cell)
+  sub       rows 10-11 cols 1-12
+
+Statement cell is 7 rows tall (3.75in) to accommodate up to ~3 lines at
+66pt × 1.10 line height = ~3.0in. Anything longer should be split across
+two slides or rephrased.
 """
 
 from __future__ import annotations
@@ -22,17 +26,13 @@ def build(content: dict, **params) -> list[dict]:
     sub = content.get("sub")
     alignment = content.get("alignment", "left")
 
-    if alignment == "center":
-        col_start, col_span = 1, 12
-    else:
-        col_start, col_span = 1, 10
-
     placements = [
         {
             "type": "heading",
             "level": "statement",
             "alignment": alignment,
-            "grid": {"row": 4, "col": col_start, "row_span": 4, "col_span": col_span},
+            "vertical_anchor": "middle",
+            "grid": {"row": 3, "col": 1, "row_span": 7, "col_span": 12},
             "content": statement,
         }
     ]
@@ -42,7 +42,7 @@ def build(content: dict, **params) -> list[dict]:
             "level": "body",
             "alignment": alignment,
             "color_key": "text_secondary",
-            "grid": {"row": 9, "col": col_start, "row_span": 2, "col_span": col_span},
+            "grid": {"row": 10, "col": 1, "row_span": 2, "col_span": 12},
             "content": sub,
         })
     return placements

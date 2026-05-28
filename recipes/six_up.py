@@ -37,13 +37,14 @@ def build(content: dict, **params) -> list[dict]:
         (3, 1), (3, 5), (3, 9),
         (8, 1), (8, 5), (8, 9),
     ]
-    # icon_label rows R-R+1 (2 rows), body rows R+2..R+4 (3 rows). No
-    # explicit gap row — icon_label's MIDDLE anchor already provides
-    # visual breathing room between label and body.
+    # icon_label takes 3 rows (R..R+2) so its MIDDLE anchor pushes the
+    # label center down to ~y=R+1.5, giving ~0.80in of visual gap before
+    # body. Body fills R+3..R+4 (2 rows). Same effective spacing as
+    # four_up's icon_label-3-rows + body-immediately-after layout.
     for (row, col), item in zip(cell_positions, items):
         placements.append({
             "type": "icon_label",
-            "grid": {"row": row, "col": col, "row_span": 2, "col_span": 4},
+            "grid": {"row": row, "col": col, "row_span": 3, "col_span": 4},
             "content": {
                 "icon_asset_id": item.get("icon_asset_id"),
                 "label": item.get("label", ""),
@@ -54,7 +55,7 @@ def build(content: dict, **params) -> list[dict]:
             placements.append({
                 "type": "text",
                 "level": "body",
-                "grid": {"row": row + 2, "col": col, "row_span": 3, "col_span": 4},
+                "grid": {"row": row + 3, "col": col, "row_span": 2, "col_span": 4},
                 "content": body,
             })
 

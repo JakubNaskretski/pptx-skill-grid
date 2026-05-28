@@ -47,13 +47,16 @@ def build(content: dict, **params) -> list[dict]:
             },
         ]
     if alignment == "center":
+        # Center variant: number sits in rows 1-9 (was 2-10) so the
+        # combined number+label composition is balanced higher on the slide
+        # rather than feeling bottom-anchored.
         return [
             {
                 "type": "heading",
                 "level": "section_number",
                 "alignment": "center",
                 "color_key": "accent_secondary",
-                "grid": {"row": 2, "col": 5, "row_span": 9, "col_span": 4},
+                "grid": {"row": 1, "col": 5, "row_span": 9, "col_span": 4},
                 "content": str(number),
             },
             {
