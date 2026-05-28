@@ -30,8 +30,7 @@ from components import Context, render_component
 # After editing, prevent accidental commits with:
 #   git update-index --skip-worktree skill/render.py
 # Reverse with: git update-index --no-skip-worktree skill/render.py
-COMPANY_NAME = "company_name"           # ← your org name; appears in non-cover slide header
-LOGO_ASSET_ID = "org_logo"              # ← skill/assets/<this>.{png,jpg,svg,webp}
+COMPANY_NAME = "company_name"           # ← your org name; appears in the footer of non-cover slides
 PAGE_NUMBERS = True
 SHOW_PRESENTATION_TITLE = True
 
@@ -111,10 +110,8 @@ def _apply_decorations(slide, ctx: Context, slide_spec: dict, plan: dict,
     canvas_h_in = ctx.canvas_h_in
     footer_y_in = canvas_h_in * 13 / 14 + 0.06  # just below content area
 
-    # --- 1. Presentation title — footer strip, after the logo ---
-    # Logo sits at x = canvas_w * 0.04 with width ≈ 0.40". This box starts
-    # at canvas_w * 0.12 and runs up to ~canvas_w * 0.84 (page number sits
-    # at 0.85+). Same y as the logo so they share one footer line.
+    # --- 1. Presentation title at footer-left ---
+    # Runs from x = 4% up to ~84% of the canvas (page number sits at 85%+).
     if SHOW_PRESENTATION_TITLE:
         # The literal placeholder "company_name" is intentional — skip the
         # text entirely until the user replaces it with their real org name.
@@ -126,9 +123,9 @@ def _apply_decorations(slide, ctx: Context, slide_spec: dict, plan: dict,
         if parts:
             text = " · ".join(parts)
             box = slide.shapes.add_textbox(
-                Inches(canvas_w_in * 0.12),
+                Inches(canvas_w_in * 0.04),
                 Inches(footer_y_in),
-                Inches(canvas_w_in * 0.72),
+                Inches(canvas_w_in * 0.80),
                 Inches(0.28),
             )
             tf = box.text_frame
@@ -164,72 +161,9 @@ def _apply_decorations(slide, ctx: Context, slide_spec: dict, plan: dict,
         run.font.size = Pt(10)
         run.font.color.rgb = ctx.rgb("text_secondary")
 
-    # --- 3. Logo at footer-left ---
-    if LOGO_ASSET_ID:
-        asset_dir = Path(__file__).parent / "assets"
-        logo_path = None
-        for ext in (".png", ".jpg", ".jpeg", ".webp", ".svg"):
-            cand = asset_dir / f"{LOGO_ASSET_ID}{ext}"
-            if cand.exists():
-                logo_path = cand
-                break
-        x = Inches(canvas_w_in * 0.04)
-        y = Inches(footer_y_in - 0.05)
-        h = Inches(0.40)
-        if logo_path and logo_path.suffix.lower() == ".svg":
-            # SVG logo: rasterize to a small high-res PNG and embed. We don't
-            # use the native asvg:svgBlip path here because the logo is tiny
-            # (~40px tall) and the raster is visually indistinguishable.
-            try:
-                import io
-                import cairosvg  # type: ignore
-                png_buf = io.BytesIO()
-                cairosvg.svg2png(url=str(logo_path), output_width=1024,
-                                 write_to=png_buf)
-                png_buf.seek(0)
-                slide.shapes.add_picture(png_buf, x, y, height=h)
-            except ImportError:
-                # cairosvg missing — show a hint-shaped placeholder.
-                shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y,
-                                               Inches(0.40), h)
-                shape.name = f"LOGO_SVG_NEEDS_CAIROSVG:{LOGO_ASSET_ID}"
-                shape.fill.solid()
-                shape.fill.fore_color.rgb = ctx.rgb("tints.grey_60")
-                shape.line.color.rgb = ctx.rgb("neutral_medium")
-                shape.line.width = Emu(12700)
-                shape.line.dash_style = 7
-                tf = shape.text_frame
-                p = tf.paragraphs[0]
-                from pptx.enum.text import PP_ALIGN as _A
-                p.alignment = _A.CENTER
-                run = p.add_run()
-                run.text = "svg"
-                run.font.name = ctx.font_name("body")
-                run.font.size = Pt(8)
-                run.font.color.rgb = ctx.rgb("text_secondary")
-        elif logo_path:
-            slide.shapes.add_picture(str(logo_path), x, y, height=h)
-        else:
-            # Placeholder so the user sees "logo missing" until they add it
-            shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y,
-                                           Inches(0.40), h)
-            shape.name = f"ASSET_PLACEHOLDER:{LOGO_ASSET_ID}:contain"
-            shape.fill.solid()
-            shape.fill.fore_color.rgb = ctx.rgb("tints.grey_60")
-            shape.line.color.rgb = ctx.rgb("neutral_medium")
-            shape.line.width = Emu(12700)
-            shape.line.dash_style = 7
-            tf = shape.text_frame
-            tf.margin_left = Emu(0)
-            tf.margin_right = Emu(0)
-            p = tf.paragraphs[0]
-            from pptx.enum.text import PP_ALIGN as _A
-            p.alignment = _A.CENTER
-            run = p.add_run()
-            run.text = "logo"
-            run.font.name = ctx.font_name("body")
-            run.font.size = Pt(8)
-            run.font.color.rgb = ctx.rgb("text_secondary")
+    # No auto-stamped logo — if you want a logo on a slide, the agent
+    # references it like any other asset (asset_id in plan.json, binary
+    # in skill/assets/ as org_logo.svg or similar).
 
 
 def _resolve_template_opener(plan: dict, override_disabled: bool) -> Path | None:
