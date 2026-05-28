@@ -418,7 +418,9 @@ TABLE_STYLES = {
     # uses Arial (body_font) — source uses theme minor font (+mn-lt = Arial)
     # for both header and body, just bold-weight differentiates header.
     #
-    # Slide 3 source: orange header band, plain body, no dividers.
+    # Slide 3 source: orange header band, plain body with subtle row
+    # dividers (the source inherits these from PowerPoint's built-in Medium
+    # Style; we add them explicitly since we can't read that style's XML).
     "header_accent": {
         "header_bg":   "accent_primary",
         "header_fg":   "text_primary",      # black on orange (source: schemeClr:tx1)
@@ -428,6 +430,8 @@ TABLE_STYLES = {
         "first_col_fg": None,
         "header_size": 14,
         "body_size":   12,
+        "row_divider_filled":   None,           # no line below the orange header
+        "row_divider_unfilled": "tints.grey_30", # subtle grey lines between body rows
     },
     # Slide 4 source: no header bg; alternating grey body rows.
     "zebra_neutral": {
