@@ -138,18 +138,38 @@ _ALIGN = {
 # ---------- Component renderers ----------
 
 
+_VERT_ANCHORS = {
+    "top": MSO_ANCHOR.TOP,
+    "middle": MSO_ANCHOR.MIDDLE,
+    "bottom": MSO_ANCHOR.BOTTOM,
+}
+
+
 def render_heading(slide, ctx: Context, rect: dict, content: Any,
                    style_overrides: dict | None = None,
                    level: str = "h1", alignment: str = "left",
-                   color_key: str = "text_primary"):
-    """heading — content is a string. `level` keys into theme.type_scale."""
+                   color_key: str = "text_primary",
+                   vertical_anchor: str = None):
+    """heading — content is a string. `level` keys into theme.type_scale.
+
+    `vertical_anchor` overrides the per-level default (section_number → middle,
+    others → top).
+    """
     text = str(content) if content is not None else ""
     base = ctx.type_style(level)
     style = _apply_style_overrides(base, style_overrides)
 
-    anchor = MSO_ANCHOR.MIDDLE if level == "section_number" else MSO_ANCHOR.TOP
+    if vertical_anchor:
+        anchor = _VERT_ANCHORS.get(vertical_anchor, MSO_ANCHOR.TOP)
+    else:
+        anchor = MSO_ANCHOR.MIDDLE if level == "section_number" else MSO_ANCHOR.TOP
+
+    # Section numbers must never wrap — at 240pt even a 2-char string can
+    # exceed any reasonable cell width.
+    word_wrap = (level != "section_number")
+
     rect_emu = ctx.to_emu(rect)
-    _, tf = _add_textbox(slide, rect_emu, anchor=anchor)
+    _, tf = _add_textbox(slide, rect_emu, anchor=anchor, word_wrap=word_wrap)
 
     p = tf.paragraphs[0]
     p.alignment = _ALIGN.get(alignment, PP_ALIGN.LEFT)
@@ -167,12 +187,19 @@ def render_heading(slide, ctx: Context, rect: dict, content: Any,
 def render_text(slide, ctx: Context, rect: dict, content: Any,
                 style_overrides: dict | None = None,
                 level: str = "body", alignment: str = "left",
-                color_key: str = "text_primary"):
-    """text — content is a string (paragraph) or list of strings (bullets)."""
+                color_key: str = "text_primary",
+                vertical_anchor: str = "top"):
+    """text — content is a string (paragraph) or list of strings (bullets).
+
+    `vertical_anchor`: top (default) | middle | bottom — anchors text within
+    its cell. Useful for centering a text block against an image of equal
+    height.
+    """
     base = ctx.type_style(level)
     style = _apply_style_overrides(base, style_overrides)
     rect_emu = ctx.to_emu(rect)
-    _, tf = _add_textbox(slide, rect_emu)
+    anchor = _VERT_ANCHORS.get(vertical_anchor, MSO_ANCHOR.TOP)
+    _, tf = _add_textbox(slide, rect_emu, anchor=anchor)
 
     font = ctx.font_name(style["font"])
     size_pt = style["size_pt"]

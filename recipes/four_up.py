@@ -34,6 +34,8 @@ def build(content: dict, **params) -> list[dict]:
         body_start_row = 3
 
     col_starts = [1, 4, 7, 10]
+    # 1-row gap between icon_label and body for breathing room.
+    body_offset = 4
     for col, item in zip(col_starts, items):
         placements.append({
             "type": "icon_label",
@@ -47,8 +49,9 @@ def build(content: dict, **params) -> list[dict]:
         placements.append({
             "type": "text",
             "level": "body",
-            "grid": {"row": body_start_row + 3, "col": col,
-                     "row_span": 12 - (body_start_row + 3) + 1, "col_span": 3},
+            "grid": {"row": body_start_row + body_offset, "col": col,
+                     "row_span": 12 - (body_start_row + body_offset) + 1,
+                     "col_span": 3},
             "content": item.get("body", ""),
         })
 
