@@ -37,7 +37,9 @@ def build(content: dict, **params) -> list[dict]:
         (3, 1), (3, 5), (3, 9),
         (8, 1), (8, 5), (8, 9),
     ]
-    # icon_label rows R-R+1 (2), gap at R+2, body rows R+3..R+4 (2)
+    # icon_label rows R-R+1 (2 rows), body rows R+2..R+4 (3 rows). No
+    # explicit gap row — icon_label's MIDDLE anchor already provides
+    # visual breathing room between label and body.
     for (row, col), item in zip(cell_positions, items):
         placements.append({
             "type": "icon_label",
@@ -52,7 +54,7 @@ def build(content: dict, **params) -> list[dict]:
             placements.append({
                 "type": "text",
                 "level": "body",
-                "grid": {"row": row + 3, "col": col, "row_span": 2, "col_span": 4},
+                "grid": {"row": row + 2, "col": col, "row_span": 3, "col_span": 4},
                 "content": body,
             })
 

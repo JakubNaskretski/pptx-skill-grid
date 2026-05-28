@@ -15,23 +15,23 @@
       "id": 2,
       "recipe": "section_divider",
       "background": "light_grey",
-      "content": {"number": "01", "label": "Tuned section dividers"}
+      "content": {"number": "1", "label": "Tuned section dividers"}
     },
     {
       "id": 3,
       "recipe": "section_divider",
-      "content": {"number": "02", "label": "Now alignment-aware", "alignment": "left"}
+      "content": {"number": "2", "label": "Now alignment-aware", "alignment": "left"}
     },
     {
       "id": 4,
       "recipe": "section_divider",
       "background": "light_orange",
-      "content": {"number": "03", "label": "Centered variant", "alignment": "center"}
+      "content": {"number": "3", "label": "Centered variant", "alignment": "center"}
     },
     {
       "id": 5,
       "recipe": "section_divider",
-      "content": {"number": "04", "label": "New recipes"}
+      "content": {"number": "4", "label": "New recipes"}
     },
     {
       "id": 6,

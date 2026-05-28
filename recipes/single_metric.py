@@ -54,12 +54,15 @@ def build(content: dict, **params) -> list[dict]:
         })
 
     if caption:
+        # Caption sits at the bottom row of the content area (respects side
+        # margins), NOT the footer strip — strip:footer would push it flush
+        # to the slide edge.
         placements.append({
             "type": "text",
             "level": "caption",
             "color_key": "text_secondary",
             "alignment": "left",
-            "grid": {"strip": "footer"},
+            "grid": {"row": 12, "col": 1, "row_span": 1, "col_span": 12},
             "content": caption,
         })
 

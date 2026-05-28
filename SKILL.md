@@ -325,6 +325,9 @@ These are what recipes emit (and what `"free"` slides list directly).
 | `divider` | (visual rule) | 1 row × full-width |
 | `spacer` | (explicit empty) | any |
 | `icon_label` | `{icon_asset_id?, label}` | ~2×3 |
+| `card` (compound) | `{image, label, body}` + `variant: image_left\|image_top\|text_only` | ~4 rows × 6 cols typical |
+
+The `card` is a compound component: it lays out image + label + body internally at proper proportions (image ~32% of card width, gap, label+body centered vertically against the image). Use it when you want a self-contained image-and-text block — `matrix_2x2` already does. Pass `variant` to switch internal layout.
 
 ### Component placement shape (in `"free"` slides)
 

@@ -42,20 +42,25 @@ fonts:
   mono:    "Courier New"
 
 # Type scale — referenced by component renderers + measure_text.
+# Sizes informed by the corporate reference deck:
+#   section number = 300pt (deck uses 350pt; we pull back slightly to
+#                    leave room for header strip), title = 48pt,
+#                    h2 = 28pt, body = 15pt, big statement = 66pt,
+#                    hero stat = 150pt.
 # "font" keys into the fonts: map above.
 type_scale:
   section_number:
-    size_pt: 240
-    weight: 400              # Georgia regular at 240pt reads very large
+    size_pt: 300
+    weight: 400              # Georgia regular at this size already reads huge
     line_height: 1.00
     font: heading
   h1:
-    size_pt: 36
+    size_pt: 48
     weight: 700
-    line_height: 1.15
+    line_height: 1.10
     font: heading
   h2:
-    size_pt: 24
+    size_pt: 28
     weight: 700
     line_height: 1.20
     font: heading
@@ -65,7 +70,7 @@ type_scale:
     line_height: 1.25
     font: heading
   body:
-    size_pt: 14
+    size_pt: 15
     weight: 400
     line_height: 1.40
     font: body
@@ -91,14 +96,14 @@ type_scale:
     font: heading
   hero_metric:
     # For single_metric — one giant number, takes ~half the slide vertically.
-    size_pt: 160
+    size_pt: 150
     weight: 700
     line_height: 1.00
     font: heading
   statement:
     # For big_statement — large declarative text, smaller than section_number,
     # bigger than h1. Centered or left, optional sub-line beneath.
-    size_pt: 60
+    size_pt: 66
     weight: 700
     line_height: 1.10
     font: heading

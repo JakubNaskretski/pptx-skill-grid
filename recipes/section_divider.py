@@ -1,20 +1,23 @@
 """section_divider — big orange numeral + section label.
 
-Layout varies by alignment:
-  right (default): number rows 3-9 cols 9-11 (right-aligned, inset 1 col from
-                   right edge), label rows 11-12 cols 1-8 bottom-left
-  left:            number rows 3-9 cols 2-4  (left-aligned, inset 1 col from
-                   left edge),  label rows 11-12 cols 5-12 bottom-right
-  center:          number rows 3-9 cols 5-8  (centered), label rows 11-12 cols 1-12
+Layout varies by alignment. Number cell is 9 rows (2-10) tall so the
+300pt Georgia numeral fits with vertical headroom (no overflow into
+label below). word_wrap is disabled on section_number in the heading
+renderer so it never wraps to two lines.
 
 content:
-  number      (str|int, required)
+  number      (str|int, required)         use single digits — they sit
+                                          better at 300pt than zero-padded
   label       (str, required)
   alignment   ('right' default | 'left' | 'center')
 
-Number cell is 7 rows tall (3-9) so 240pt text fits with vertical headroom
-(no overlap into label). Row 10 is an explicit gap. word_wrap is disabled
-on section_number in the heading renderer so e.g. "01" stays on one line.
+Layouts:
+  right:  number rows 2-10 cols 9-11 (right-aligned, inset 1 col from edge)
+          label  rows 11-12 cols 1-8 bottom-left
+  left:   number rows 2-10 cols 2-4  (left-aligned, inset 1 col from edge)
+          label  rows 11-12 cols 5-12 bottom-right
+  center: number rows 2-10 cols 5-8  (centered)
+          label  rows 11-12 cols 1-12 centered
 """
 
 from __future__ import annotations
@@ -32,7 +35,7 @@ def build(content: dict, **params) -> list[dict]:
                 "level": "section_number",
                 "alignment": "left",
                 "color_key": "accent_secondary",
-                "grid": {"row": 3, "col": 2, "row_span": 7, "col_span": 3},
+                "grid": {"row": 2, "col": 2, "row_span": 9, "col_span": 3},
                 "content": str(number),
             },
             {
@@ -50,7 +53,7 @@ def build(content: dict, **params) -> list[dict]:
                 "level": "section_number",
                 "alignment": "center",
                 "color_key": "accent_secondary",
-                "grid": {"row": 3, "col": 5, "row_span": 7, "col_span": 4},
+                "grid": {"row": 2, "col": 5, "row_span": 9, "col_span": 4},
                 "content": str(number),
             },
             {
@@ -68,7 +71,7 @@ def build(content: dict, **params) -> list[dict]:
             "level": "section_number",
             "alignment": "right",
             "color_key": "accent_secondary",
-            "grid": {"row": 3, "col": 9, "row_span": 7, "col_span": 3},
+            "grid": {"row": 2, "col": 9, "row_span": 9, "col_span": 3},
             "content": str(number),
         },
         {

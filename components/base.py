@@ -18,7 +18,7 @@ from pptx.chart.data import CategoryChartData
 from pptx.dml.color import RGBColor
 from pptx.enum.chart import XL_CHART_TYPE, XL_LEGEND_POSITION
 from pptx.enum.shapes import MSO_SHAPE
-from pptx.enum.text import MSO_ANCHOR, PP_ALIGN
+from pptx.enum.text import MSO_ANCHOR, MSO_AUTO_SIZE, PP_ALIGN
 from pptx.util import Emu, Inches, Pt
 
 
@@ -119,6 +119,10 @@ def _add_textbox(slide, rect_emu, *, anchor=MSO_ANCHOR.TOP, word_wrap=True):
     tf = box.text_frame
     tf.word_wrap = word_wrap
     tf.vertical_anchor = anchor
+    # Belt-and-braces: never auto-shrink or auto-grow. We size text explicitly
+    # via measure_text and the type scale. PowerPoint sometimes enables
+    # shrink-on-overflow by default for certain shape kinds.
+    tf.auto_size = MSO_AUTO_SIZE.NONE
     # Clear default paragraph so we control insertion
     tf.margin_left = Emu(0)
     tf.margin_right = Emu(0)
@@ -598,7 +602,7 @@ def render_cta(slide, ctx: Context, rect: dict, content: Any,
     rect_emu = ctx.to_emu(rect)
     left, top, w, h = rect_emu
 
-    shape = slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE, left, top, w, h)
+    shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, left, top, w, h)
     shape.fill.solid()
     shape.fill.fore_color.rgb = ctx.rgb("accent_primary")
     shape.line.fill.background()
@@ -684,6 +688,139 @@ def render_icon_label(slide, ctx: Context, rect: dict, content: Any,
     )
 
 
+# ---------- Compound components ----------
+
+
+def _normalize_image_content(image):
+    """Accept asset_id string, dict with asset_id, or placeholder dict."""
+    if image is None:
+        return {"placeholder": True, "label": "image"}
+    if isinstance(image, str):
+        return {"asset_id": image, "fit": "fill"}
+    if isinstance(image, dict):
+        if "asset_id" in image or "placeholder" in image:
+            return image
+        return {"placeholder": True, "label": "image"}
+    return {"placeholder": True, "label": "image"}
+
+
+def render_card(slide, ctx: Context, rect: dict, content: Any,
+                style_overrides: dict | None = None,
+                variant: str = "image_left"):
+    """Card — a compound component that lays out image + label + body
+    inside a single grid placement.
+
+    The card handles its own internal proportions and gaps, so recipes that
+    use cards (matrix_2x2, team_grid_2x2, …) don't need to micro-place
+    sub-components on the grid.
+
+    content:
+      image  ('asset_id' | {asset_id, fit} | {placeholder, label} | None)
+      label  (str)
+      body   (str|list)
+
+    variants:
+      image_left  — image left ~32%, gap, label+body right; label/body
+                    vertically centered against the image
+      image_top   — image top ~60%, label+body bottom ~40%
+      text_only   — no image; label top, body fills the rest
+    """
+    if not isinstance(content, dict):
+        return
+
+    image = content.get("image")
+    label = content.get("label", "")
+    body = content.get("body", "")
+
+    if variant == "image_top":
+        _card_image_top(slide, ctx, rect, image, label, body)
+    elif variant == "text_only":
+        _card_text_only(slide, ctx, rect, label, body)
+    else:
+        _card_image_left(slide, ctx, rect, image, label, body)
+
+
+def _card_image_left(slide, ctx, rect, image, label, body):
+    # Fractions of card width: image 32%, gap 6%, text 62%.
+    img_w = rect["w"] * 0.32
+    gap_w = rect["w"] * 0.06
+    txt_w = rect["w"] - img_w - gap_w
+    txt_x = rect["x"] + img_w + gap_w
+
+    # Image fills full card height.
+    render_image(
+        slide, ctx,
+        {"x": rect["x"], "y": rect["y"], "w": img_w, "h": rect["h"]},
+        _normalize_image_content(image),
+    )
+
+    # Text block centered vertically against the image.
+    # Allocate 35% of card height to label, 50% to body, total 85% centered.
+    label_h = rect["h"] * 0.35
+    body_h = rect["h"] * 0.50
+    text_block_h = label_h + body_h
+    text_top = rect["y"] + (rect["h"] - text_block_h) / 2
+
+    if label:
+        render_heading(
+            slide, ctx,
+            {"x": txt_x, "y": text_top, "w": txt_w, "h": label_h},
+            label, level="h3", vertical_anchor="bottom",
+        )
+    if body:
+        render_text(
+            slide, ctx,
+            {"x": txt_x, "y": text_top + label_h, "w": txt_w, "h": body_h},
+            body, level="body", vertical_anchor="top",
+        )
+
+
+def _card_image_top(slide, ctx, rect, image, label, body):
+    img_h = rect["h"] * 0.55
+    gap_h = rect["h"] * 0.05
+    text_h = rect["h"] - img_h - gap_h
+
+    render_image(
+        slide, ctx,
+        {"x": rect["x"], "y": rect["y"], "w": rect["w"], "h": img_h},
+        _normalize_image_content(image),
+    )
+    label_h = text_h * 0.40
+    body_h = text_h - label_h
+    text_top = rect["y"] + img_h + gap_h
+    if label:
+        render_heading(
+            slide, ctx,
+            {"x": rect["x"], "y": text_top, "w": rect["w"], "h": label_h},
+            label, level="h3", vertical_anchor="top",
+        )
+    if body:
+        render_text(
+            slide, ctx,
+            {"x": rect["x"], "y": text_top + label_h,
+             "w": rect["w"], "h": body_h},
+            body, level="body", vertical_anchor="top",
+        )
+
+
+def _card_text_only(slide, ctx, rect, label, body):
+    label_h = rect["h"] * 0.30
+    body_h = rect["h"] - label_h
+    if label:
+        render_heading(
+            slide, ctx,
+            {"x": rect["x"], "y": rect["y"], "w": rect["w"], "h": label_h},
+            label, level="h3", vertical_anchor="top",
+        )
+    if body:
+        render_text(
+            slide, ctx,
+            {"x": rect["x"], "y": rect["y"] + label_h,
+             "w": rect["w"], "h": body_h},
+            body, level="body", vertical_anchor="top",
+        )
+
+
 # ---------- Dispatch ----------
 
 
@@ -699,6 +836,7 @@ COMPONENT_RENDERERS = {
     "divider": render_divider,
     "spacer": render_spacer,
     "icon_label": render_icon_label,
+    "card": render_card,
 }
 
 
