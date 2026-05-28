@@ -66,6 +66,125 @@ def _apply_background(slide, ctx: Context, bg_kind: str) -> None:
 
 from recipes import RECIPES
 
+PRIVATE_CONFIG_PATH = Path(__file__).parent / "private_config.yaml"
+
+
+def _load_private_config() -> dict:
+    """Load private_config.yaml if it exists; return {} otherwise.
+
+    private_config.yaml is gitignored. It carries org-specific settings
+    (company_name, logo, page numbers, etc.) the user keeps local.
+    """
+    if not PRIVATE_CONFIG_PATH.exists():
+        return {}
+    try:
+        with open(PRIVATE_CONFIG_PATH) as f:
+            return yaml.safe_load(f) or {}
+    except yaml.YAMLError:
+        return {}
+
+
+def _apply_decorations(slide, ctx: Context, slide_spec: dict, plan: dict,
+                       config: dict, total_slides: int) -> None:
+    """Stamp logo, presentation title, and page number on every non-cover
+    slide. Driven by `private_config.yaml`. Skips cover (id=1)."""
+    from pptx.enum.text import PP_ALIGN
+    from pptx.util import Pt
+
+    if not config:
+        return
+    slide_id = slide_spec.get("id", 0)
+    if slide_id == 1:
+        return  # cover skips decorations
+
+    canvas_w_in = ctx.canvas_w_in
+    canvas_h_in = ctx.canvas_h_in
+    footer_y_in = canvas_h_in * 13 / 14 + 0.06  # just below content area
+
+    # --- 1. Presentation title at header-left ---
+    if config.get("presentation_title", {}).get("enabled"):
+        company = (config.get("company_name") or "").strip()
+        deck_title = (plan.get("deck_title") or "").strip()
+        parts = [p for p in (company, deck_title) if p]
+        if parts:
+            text = " · ".join(parts)
+            box = slide.shapes.add_textbox(
+                Inches(canvas_w_in * 0.04),
+                Inches(0.12),
+                Inches(canvas_w_in * 0.70),
+                Inches(0.28),
+            )
+            tf = box.text_frame
+            tf.word_wrap = False
+            tf.margin_left = Emu(0)
+            tf.margin_right = Emu(0)
+            p = tf.paragraphs[0]
+            p.alignment = PP_ALIGN.LEFT
+            run = p.add_run()
+            run.text = text
+            run.font.name = ctx.font_name("body")
+            run.font.size = Pt(10)
+            run.font.color.rgb = ctx.rgb("text_secondary")
+
+    # --- 2. Page number at footer-right ---
+    if config.get("page_numbers", {}).get("enabled"):
+        text = f"{slide_id} / {total_slides}"
+        box = slide.shapes.add_textbox(
+            Inches(canvas_w_in * 0.85),
+            Inches(footer_y_in),
+            Inches(canvas_w_in * 0.11),
+            Inches(0.28),
+        )
+        tf = box.text_frame
+        tf.word_wrap = False
+        tf.margin_left = Emu(0)
+        tf.margin_right = Emu(0)
+        p = tf.paragraphs[0]
+        p.alignment = PP_ALIGN.RIGHT
+        run = p.add_run()
+        run.text = text
+        run.font.name = ctx.font_name("body")
+        run.font.size = Pt(10)
+        run.font.color.rgb = ctx.rgb("text_secondary")
+
+    # --- 3. Logo at footer-left ---
+    logo_cfg = config.get("logo") or {}
+    logo_id = logo_cfg.get("asset_id")
+    if logo_id:
+        asset_dir = Path(__file__).parent / "assets"
+        logo_path = None
+        for ext in (".png", ".jpg", ".jpeg", ".webp"):
+            cand = asset_dir / f"{logo_id}{ext}"
+            if cand.exists():
+                logo_path = cand
+                break
+        x = Inches(canvas_w_in * 0.04)
+        y = Inches(footer_y_in - 0.05)
+        h = Inches(0.40)
+        if logo_path:
+            slide.shapes.add_picture(str(logo_path), x, y, height=h)
+        else:
+            # Placeholder so the user sees "logo missing" until they add it
+            shape = slide.shapes.add_shape(MSO_SHAPE.RECTANGLE, x, y,
+                                           Inches(0.40), h)
+            shape.name = f"ASSET_PLACEHOLDER:{logo_id}:contain"
+            shape.fill.solid()
+            shape.fill.fore_color.rgb = ctx.rgb("tints.grey_60")
+            shape.line.color.rgb = ctx.rgb("neutral_medium")
+            shape.line.width = Emu(12700)
+            shape.line.dash_style = 7
+            tf = shape.text_frame
+            tf.margin_left = Emu(0)
+            tf.margin_right = Emu(0)
+            p = tf.paragraphs[0]
+            from pptx.enum.text import PP_ALIGN as _A
+            p.alignment = _A.CENTER
+            run = p.add_run()
+            run.text = "logo"
+            run.font.name = ctx.font_name("body")
+            run.font.size = Pt(8)
+            run.font.color.rgb = ctx.rgb("text_secondary")
+
 
 def render(plan: dict, theme: dict, out_path: str) -> None:
     prs = Presentation()
@@ -74,9 +193,11 @@ def render(plan: dict, theme: dict, out_path: str) -> None:
     prs.slide_height = Inches(canvas.get("height_in", 7.5))
 
     ctx = Context.from_theme(theme)
+    config = _load_private_config()
 
     # Use the blank layout — index 6 is typical for "Blank" in default master.
     blank_layout = prs.slide_layouts[6]
+    total_slides = len(plan.get("slides", []))
 
     for slide_spec in plan.get("slides", []):
         slide = prs.slides.add_slide(blank_layout)
@@ -98,6 +219,9 @@ def render(plan: dict, theme: dict, out_path: str) -> None:
 
         for placement in placements:
             render_component(slide, ctx, placement)
+
+        # Decorations (logo, page number, presentation title) — non-cover only.
+        _apply_decorations(slide, ctx, slide_spec, plan, config, total_slides)
 
     prs.save(out_path)
 

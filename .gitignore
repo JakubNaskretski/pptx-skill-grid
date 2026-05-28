@@ -1,3 +1,6 @@
+# Private organization config — never commit
+skill/private_config.yaml
+
 __pycache__/
 *.pyc
 *.pyo

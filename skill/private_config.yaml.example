@@ -1,0 +1,36 @@
+# Private configuration — DO NOT COMMIT.
+#
+# 1. Copy this file:    cp private_config.yaml.example private_config.yaml
+# 2. Edit your values   (see below)
+# 3. private_config.yaml is gitignored, so your edits stay local.
+#
+# When you set up the skill in a new environment (a different org, a
+# new machine), just copy the same private_config.yaml file across —
+# don't pull it through git.
+
+# Your organization name. Appears next to the deck title in the header
+# of every non-cover slide (e.g. "Acme Corp · Q4 Results").
+# The placeholder value "company_name" is intentional — find and replace
+# it with your actual name. If empty, header shows just the deck title.
+company_name: "company_name"
+
+# Logo to stamp on every non-cover slide (footer-left, small).
+#
+# 1. Drop the binary into  skill/assets/<asset_id>.png  (or .jpg)
+#    (SVG not yet supported for logos — convert to PNG first.)
+# 2. Run                   python describe_assets.py assets/
+#    to generate the sidecar yaml.
+# 3. Reference the id below.
+#
+# Set asset_id to null (or remove this block) to skip the logo entirely.
+logo:
+  asset_id: org_logo
+
+# Page numbers ("1 / 12") on every non-cover slide, footer-right.
+page_numbers:
+  enabled: true
+
+# Presentation title (from plan.deck_title) at top-left of every
+# non-cover slide. Combined with company_name when both are set.
+presentation_title:
+  enabled: true

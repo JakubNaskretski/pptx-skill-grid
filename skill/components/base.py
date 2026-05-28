@@ -778,9 +778,15 @@ def render_spacer(slide, ctx: Context, rect: dict, content: Any = None,
 
 def render_icon_label(slide, ctx: Context, rect: dict, content: Any,
                       style_overrides: dict | None = None):
-    """icon_label — content is {"icon_asset_id": "...", "label": "..."}.
+    """icon_label — content is {"icon_asset_id": "...", "label": "...",
+    "with_icon": bool?}.
 
-    Left ~25% is an icon placeholder; right ~75% is the label.
+    If `icon_asset_id` is set OR `with_icon: true` is explicit, the left
+    ~25% is an icon placeholder and the label takes the right ~75%.
+
+    Otherwise (default) no icon area is rendered — label uses the full
+    cell width. Prevents empty orange placeholders in N-up recipes when
+    items don't specify icons.
     """
     if isinstance(content, str):
         content = {"label": content}
@@ -789,23 +795,32 @@ def render_icon_label(slide, ctx: Context, rect: dict, content: Any,
 
     rect_emu = ctx.to_emu(rect)
     left, top, w, h = rect_emu
-    icon_w = int(w * 0.25)
-    gap = int(w * 0.03)
 
-    if icon_id or content.get("with_icon", True):
-        # Icon placeholder
+    show_icon = bool(icon_id) or content.get("with_icon") is True
+
+    if show_icon:
+        icon_w = int(w * 0.25)
+        gap = int(w * 0.03)
         icon_shape = slide.shapes.add_shape(
             MSO_SHAPE.RECTANGLE, left, top, icon_w, h
         )
         icon_shape.name = f"{PLACEHOLDER_PREFIX}:{icon_id or 'none'}:contain"
         icon_shape.fill.solid()
-        icon_shape.fill.fore_color.rgb = ctx.rgb("tints.orange_90") if "tints" in ctx.theme else _hex_to_rgb("#FFF5ED")
+        icon_shape.fill.fore_color.rgb = (
+            ctx.rgb("tints.orange_90") if "tints" in ctx.theme
+            else _hex_to_rgb("#FFF5ED")
+        )
         icon_shape.line.color.rgb = ctx.rgb("accent_primary")
         icon_shape.line.width = Emu(12700)
         icon_shape.line.dash_style = 7
 
-    label_left = left + icon_w + gap
-    label_w = w - icon_w - gap
+        label_left = left + icon_w + gap
+        label_w = w - icon_w - gap
+    else:
+        # No icon — label fills the cell.
+        label_left = left
+        label_w = w
+
     box = slide.shapes.add_textbox(label_left, top, label_w, h)
     tf = box.text_frame
     tf.word_wrap = True

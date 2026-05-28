@@ -328,6 +328,50 @@ randomise.
 If you finish a deck and every slide is white, you didn't use this
 tool — re-check.
 
+### Decorations are automatic — don't add them yourself
+
+Logo, page number, and presentation title appear on every non-cover
+slide AUTOMATICALLY at render time (driven by `private_config.yaml`).
+You don't need to place them as components. Cover slide (id=1) skips
+them.
+
+Specifically: don't add a "logo" component, a "page X / Y" text, or
+a header with the deck title to any slide. The render step does this.
+
+### Opener slides — covers and section dividers carry more weight
+
+The cover (slide 1) and section dividers set the tone. Don't default
+to bare text.
+
+  Cover (`title_only`):
+    Almost always benefits from `background: "light_orange"`.
+    If the brief warrants a visual cover and the user supplied (or
+    will supply) a hero image, consider `title_hero_image` instead —
+    use a speculative asset_id like `cover_hero` if no binary yet.
+
+  Section dividers (`section_divider`):
+    Use them sparingly (one per section) but make them feel like a
+    pause. A non-white background (`light_grey` or `light_orange`,
+    consistent across all dividers) plus the large numeral does the
+    work.
+
+### Icons in three_up / four_up / six_up — opt in, don't default
+
+These recipes have an icon slot per item. The icon area renders ONLY
+when you set `icon_asset_id` (or `with_icon: true`). Default = no icon
+area, label takes full cell width.
+
+Decide per slide:
+  - When icons enrich the slide (process steps, principles, product
+    pillars): provide a speculative `icon_asset_id` per item
+    (e.g. `icon_workflow`, `icon_security`). The orange placeholder
+    appears; user drops matching SVGs into `assets/` later.
+  - When a clean text-only layout reads better: omit `icon_asset_id`.
+    No empty placeholder, just label + body in the full cell.
+
+Don't leave orange icon placeholders sitting empty — either commit
+to filling them (speculative id + shopping list) or skip the icon area.
+
 ### Mix recipes for rhythm.
 
 Don't stack more than 2 bullet-heavy recipes (`title_bullets`,
