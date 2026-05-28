@@ -328,15 +328,27 @@ randomise.
 If you finish a deck and every slide is white, you didn't use this
 tool — re-check.
 
-### Decorations are automatic — don't add them yourself
+### Decorations are automatic — hands off
 
 Logo, page number, and presentation title appear on every non-cover
-slide AUTOMATICALLY at render time (driven by `private_config.yaml`).
-You don't need to place them as components. Cover slide (id=1) skips
-them.
+slide AUTOMATICALLY at render time. They're configured at the org
+level by the user (in a gitignored `private_config.yaml` file you
+DO NOT read, write, or reference unprompted). Cover slide (id=1)
+skips decorations by design.
 
-Specifically: don't add a "logo" component, a "page X / Y" text, or
-a header with the deck title to any slide. The render step does this.
+What this means for you:
+
+  - Don't place a "logo" component, a "page N / M" text shape, or
+    a header carrying the deck title on any slide. Render does this.
+  - Don't tell the user "set up private_config.yaml to enable the
+    logo" — it's outside your scope; either the org has it set up
+    or they don't.
+  - If the user asks where the logo / page numbers come from, you
+    CAN explain that decorations are stamped automatically at
+    render based on the org's config — but don't open the file or
+    quote its contents.
+
+In short: assume the org config exists and works. Render handles it.
 
 ### Opener slides — covers and section dividers carry more weight
 
