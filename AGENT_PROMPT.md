@@ -386,20 +386,109 @@ or render invocations you make per turn. Make as many as the task needs
 in a single response. Stopping after one tool call to "wait for the
 user" is wrong — the user only needs to see the *result*.
 
-## Tooling — call these as shell commands
+## Tools — what each one does and when to use it
 
-  python reader.py list-recipes              — full recipe catalog
-  python reader.py recipe-signature <name>   — fields a recipe accepts
-  python reader.py preview-recipe <name> --content '<json>'
-                                              — see placements before commit
-  python reader.py validate-slide <slide.json>  — per-slide check (USE PER SLIDE)
-  python reader.py validate-plan <plan.json>    — whole-deck check
-  python reader.py find-asset --kind ... --tags ...
-                                              — discover assets (defaults to assets/)
-  python reader.py measure-text "..." --type-level h1 --cell-rect '<rect>'
+You have `reader.py` (a CLI with many sub-commands), `render.py`, and
+`splice_assets.py`. Read this section once; you'll know which tool to
+reach for at each step without having to guess.
 
-Read SKILL.md in your working directory for the full catalog of 26 recipes,
-7 table styles, 12 components, type scale, and validation rules. Look up,
+### Catalog lookup (Phase 2 outline, Phase 3 recipe pick)
+
+  `python reader.py list-recipes`
+    Returns all 26 recipes with their content shapes and "use_when"
+    guidance. Run this once at start of Phase 2 if you're unsure
+    what's available.
+
+  `python reader.py recipe-signature <name>`
+    Returns the exact content fields one recipe accepts.
+    Use when you've picked a recipe and need to know what to fill.
+
+  `python reader.py preview-recipe <name> --content '<json>'`
+    Resolves a recipe to component placements WITHOUT rendering.
+    Optional — useful for sanity-checking layout before committing.
+
+  `python reader.py theme`
+    Returns the palette / fonts / type scale.
+    You almost never need this directly; recipes resolve theme
+    references for you. Only call if you need a specific hex.
+
+### Asset discovery (Phase 3, every image slot)
+
+  `python reader.py find-asset --kind <k> --tags <t1,t2>`
+    Searches `assets/` for sidecars matching kind/tags. Returns up to
+    N matches with descriptions you pick from.
+
+    CALL THIS BEFORE EVERY IMAGE SLOT. If empty, try other tag
+    combinations or `--kind` values (chain queries — don't stop at
+    one). If still empty, use a speculative `asset_id` in the slide
+    spec.
+
+### Validation (after EVERY slide compose, and at Phase 4)
+
+  `python reader.py validate-slide <slide.json>`
+    THE single most important tool you'll use. Runs in one shot:
+      - grid_audit (overlaps, out-of-bounds)
+      - measure_text on every text component (overflow)
+      - palette_audit (off-palette colors)
+      - chart_sanity (chart-type vs data mismatches)
+      - metric value overflow check
+    Returns `{ok, errors, warnings}`.
+
+    Call after composing EACH slide in Phase 3. Fix all errors
+    silently before saving the slide. If warnings can be resolved
+    by you, resolve them; only surface to the user if you genuinely
+    can't.
+
+  `python reader.py validate-plan <plan.json>`
+    Same as validate-slide but for the whole deck + adds deck_flow
+    checks ("no closer", "three bullet slides in a row").
+
+    Call ONCE in Phase 4 after all slides composed.
+
+### Render — produces .pptx files
+
+  `python render.py <plan.json> <out.pptx>`
+    Renders the plan to a real .pptx. Auto-splices image binaries
+    from `assets/` if sidecars + binaries are present.
+
+    Call:
+      - After every batch in Phase 3 → `/tmp/preview.pptx`
+      - At Phase 5 for the final deliverable → `/tmp/out.pptx`
+
+  `python splice_assets.py <in.pptx> -o <out.pptx>`
+    Manual splice path. `render.py` already does this automatically;
+    only use if you're re-splicing an existing pptx against different
+    assets.
+
+### Tools you usually DON'T call directly
+
+`validate-slide` and `validate-plan` already wrap these:
+
+  `measure-text`, `check-asset-fit`, `contrast-check`, `palette-audit`,
+  `grid-audit`, `visual-balance`, `chart-sanity`, `deck-flow`
+
+Only call them directly if a validate result is opaque and you want to
+investigate a specific check.
+
+### Common patterns
+
+**Phase 3, per slide:**
+
+  1. (optional) `recipe-signature` to recall fields
+  2. compose JSON
+  3. `find-asset` for any image slots
+  4. save `slide_N.json`
+  5. `validate-slide` → fix errors → re-validate until clean
+  6. append to `plan.json`
+
+**Phase 4 → 5:**
+
+  1. `validate-plan` → fix any errors silently
+  2. `render.py plan.json out.pptx`
+  3. give user the clickable download link
+
+For full catalog details (every recipe's parameters, all 7 table styles,
+type scale, etc.), read `SKILL.md` in your working directory. Look up,
 don't memorize.
 
 ## Hard rules
