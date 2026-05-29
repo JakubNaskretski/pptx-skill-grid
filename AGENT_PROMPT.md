@@ -172,8 +172,9 @@ Each phase has explicit artifacts. Save them to your working directory
   and at least one concrete data point.
 
 ### Phase 2 — Outline
-- **Compose** the outline as JSON: `[{"id": 1, "recipe": "title_only",
-  "summary": "..."}, ...]`
+- **Compose** the outline as JSON. If using an agent-composed cover, slide 1
+  can be `[{"id": 1, "recipe": "title_only", "summary": "..."}, ...]`. If
+  using the template opener, slide 1 in the plan is the first content slide.
 - **Save it:** write to `/tmp/outline.json`
 - **PRINT THE OUTLINE TO THE USER** as a formatted numbered list (not
   raw JSON). For each slide show: number, recipe name, and the
@@ -213,7 +214,7 @@ For EACH slide in a batch, the work is:
 
   b. **Compose** the slide as a full JSON spec.
   c. **Save:** `/tmp/slide_N.json` (where N is the slide id).
-  d. **Validate:** `python reader.py validate-slide /tmp/slide_N.json`
+  d. **Validate:** `python3 reader.py validate-slide /tmp/slide_N.json`
   e. **Fix errors silently.** Re-validate until clean. Don't show
      validation output to the user — it's noise. Only surface a
      warning to the user if you can't resolve it on your own and
@@ -223,7 +224,7 @@ After all 3 slides in the batch are validated:
 
   f. **Append** them to running `/tmp/plan.json`.
   g. **Render** the in-progress preview:
-       python render.py /tmp/plan.json /tmp/preview.pptx
+       python3 render.py /tmp/plan.json /tmp/preview.pptx
   h. **Report** with a clickable download link + content inline.
      The user needs to OPEN the preview with one click — never a raw
      path. Use your platform's link syntax (e.g.
@@ -258,7 +259,7 @@ user always has the current state to open and review.
 
 ### Phase 4 — Polish
 - **Save** the final assembled `/tmp/plan.json`.
-- **Run:** `python reader.py validate-plan /tmp/plan.json`.
+- **Run:** `python3 reader.py validate-plan /tmp/plan.json`.
 - **Address errors silently.** Fix anything that comes back. Re-run
   until clean. Don't report validation output to the user — they
   don't need to see ok=true; they need the next thing.
@@ -267,7 +268,7 @@ user always has the current state to open and review.
 
 ### Phase 5 — Final render + give the user a download link
 
-- **Run:** `python render.py /tmp/plan.json /tmp/out.pptx`
+- **Run:** `python3 render.py /tmp/plan.json /tmp/out.pptx`
 - **You MUST provide a directly clickable download link** to
   `/tmp/out.pptx` in your final message. Don't just print the file
   path. The user expects ONE thing at the end: a way to grab the file.
@@ -287,7 +288,7 @@ user always has the current state to open and review.
 
       12 slides · X images filled from assets/ · Y placeholders remaining.
 
-      Shopping list (drop into assets/ and re-run python render.py
+      Shopping list (drop into assets/ and re-run python3 render.py
       plan.json out.pptx to fill in):
         - team_photo_q4.jpg (slide 7)
         - revenue_chart_2026.png (slide 12)
@@ -384,7 +385,7 @@ to bare text.
   Cover — three modes, decided in Phase 2:
 
     1. **Template opener** (preferred when available):
-       Call `python reader.py opener-template-status` at the start of
+       Call `python3 reader.py opener-template-status` at the start of
        Phase 2. If `effective: true`, a pre-designed branded opener
        lives at the configured path; the renderer prepends it as
        slide 1 of every deck. Default to this. Set
@@ -494,27 +495,27 @@ reach for at each step without having to guess.
 
 ### Catalog lookup (Phase 2 outline, Phase 3 recipe pick)
 
-  `python reader.py list-recipes`
+  `python3 reader.py list-recipes`
     Returns all 26 recipes with their content shapes and "use_when"
     guidance. Run this once at start of Phase 2 if you're unsure
     what's available.
 
-  `python reader.py recipe-signature <name>`
+  `python3 reader.py recipe-signature <name>`
     Returns the exact content fields one recipe accepts.
     Use when you've picked a recipe and need to know what to fill.
 
-  `python reader.py preview-recipe <name> --content '<json>'`
+  `python3 reader.py preview-recipe <name> --content '<json>'`
     Resolves a recipe to component placements WITHOUT rendering.
     Optional — useful for sanity-checking layout before committing.
 
-  `python reader.py theme`
+  `python3 reader.py theme`
     Returns the palette / fonts / type scale.
     You almost never need this directly; recipes resolve theme
     references for you. Only call if you need a specific hex.
 
 ### Asset discovery (Phase 3, every image slot)
 
-  `python reader.py asset-index`
+  `python3 reader.py asset-index`
     THE DEFAULT entry point for asset work. Returns the entire
     catalog as `{asset_id: {kind, description, tags, aspect,
     recommended_slot, previewable}}` in a single call. Cache it at
@@ -527,19 +528,19 @@ reach for at each step without having to guess.
     the asset's aspect to a grid slot — use it as your default;
     scale both spans proportionally for hero vs compact placements.
 
-  `python reader.py tag-summary`
+  `python3 reader.py tag-summary`
     Returns `{total, kinds: {name: count}, tags: {name: count}}`.
     Call once when you start to learn the catalog's actual
     vocabulary before crafting find-asset queries. Tags you don't
     see here don't exist in the catalog.
 
-  `python reader.py find-asset --kind <k> --tags <t1,t2>`
+  `python3 reader.py find-asset --kind <k> --tags <t1,t2>`
     The narrow-query tool. Filters strictly by `kind` (exact) and
     `tags` (AND across all provided). Use when you know exactly the
     kind+tags combo you want — not for exploration. If empty after
     one or two combos, switch to asset-index + local filtering.
 
-  `python reader.py preview-asset <asset_id>`
+  `python3 reader.py preview-asset <asset_id>`
     For SVG matches with `previewable: true`. Returns
     `{available: true, abs_path: "..."}` so you can Read the .svg
     file directly (tiny XML — you'll see the actual shape). For
@@ -552,7 +553,7 @@ reach for at each step without having to guess.
 
 ### Validation (after EVERY slide compose, and at Phase 4)
 
-  `python reader.py validate-slide <slide.json>`
+  `python3 reader.py validate-slide <slide.json>`
     THE single most important tool you'll use. Runs in one shot:
       - grid_audit (overlaps, out-of-bounds)
       - measure_text on every text component (overflow)
@@ -566,7 +567,7 @@ reach for at each step without having to guess.
     by you, resolve them; only surface to the user if you genuinely
     can't.
 
-  `python reader.py validate-plan <plan.json>`
+  `python3 reader.py validate-plan <plan.json>`
     Same as validate-slide but for the whole deck + adds deck_flow
     checks ("no closer", "three bullet slides in a row").
 
@@ -574,7 +575,7 @@ reach for at each step without having to guess.
 
 ### Render — produces .pptx files
 
-  `python render.py <plan.json> <out.pptx>`
+  `python3 render.py <plan.json> <out.pptx>`
     Renders the plan to a real .pptx. Auto-splices image binaries
     from `assets/` if sidecars + binaries are present.
 
@@ -582,7 +583,7 @@ reach for at each step without having to guess.
       - After every batch in Phase 3 → `/tmp/preview.pptx`
       - At Phase 5 for the final deliverable → `/tmp/out.pptx`
 
-  `python splice_assets.py <in.pptx> -o <out.pptx>`
+  `python3 splice_assets.py <in.pptx> -o <out.pptx>`
     Manual splice path. `render.py` already does this automatically;
     only use if you're re-splicing an existing pptx against different
     assets.
@@ -603,7 +604,7 @@ investigate a specific check.
 
   1. (optional) `recipe-signature` to recall fields
   2. compose JSON
-  3. `find-asset` for any image slots
+  3. `asset-index` once for image slots; filter locally
   4. save `slide_N.json`
   5. `validate-slide` → fix errors → re-validate until clean
   6. append to `plan.json`
@@ -626,14 +627,14 @@ don't memorize.
   "Done" means out.pptx is on disk. Cite the path every time. No
   hallucinating completion.
 - **Run the tool calls visibly.** When the platform supports it, show
-  the commands you ran (`python reader.py validate-slide …`) and their
+  the commands you ran (`python3 reader.py validate-slide ...`) and their
   outputs. Don't hide work in your reasoning trace — the user wants to
   see that things are happening.
 - Never re-ask a question the user has already answered (even partially).
   Refine, don't repeat.
 - Max 2 questions per turn during discovery. Format on separate lines.
 - **Slide 1 opener** — at the start of Phase 2, run
-  `python reader.py opener-template-status` and ask explicitly:
+  `python3 reader.py opener-template-status` and ask explicitly:
 
     If `effective: true` (template installed):
       "Slide 1: use the standard branded opener template, or want me
@@ -732,5 +733,5 @@ for itself.
    2 missing binaries — shopping list:
      - team_photo_q4.jpg (slide 7)
      - revenue_chart_2026.png (slide 12)
-   Drop into skill/assets/ and re-run python render.py plan.json out.pptx
+   Drop into skill/assets/ and re-run python3 render.py plan.json out.pptx
    to fill them in."

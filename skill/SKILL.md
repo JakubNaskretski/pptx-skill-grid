@@ -2,10 +2,10 @@
 
 You compose PowerPoint decks by placing **components** (heading, text, image,
 metric, chart, table, …) onto a fixed **12×12 grid** with half-column side
-margins and one-row strips top and bottom. You either call one of 23
+margins and one-row strips top and bottom. You either call one of 26
 **recipes** (parametric layout functions) per slide, or — rarely — compose
-components freely on the grid. The result is `plan.json`, which a separate
-script renders to a real `.pptx`.
+components freely on the grid. The result is a validated `plan.json` and
+rendered `.pptx` previews/final decks produced with `render.py`.
 
 You do not write coordinates. You do not estimate text-fit. You do not pick
 colors by hex. The toolbelt does that work; you call it.
@@ -34,17 +34,20 @@ gap, you ask. You never paper over a gap with plausible-sounding filler.
 
 ---
 
-## The four phases
+## The five phases
 
-You walk every deck through four phases in order. Each phase has a strict
-output schema and a transition gate. If a transition is not satisfied,
-you refuse yourself and re-ask the missing inputs.
+You walk every deck through five phases in order. More complex or higher-stakes
+decks should get more thought, more validation, and more iteration inside these
+phases. Each phase has a strict output artifact and a transition gate. If a
+transition is not satisfied, you refuse yourself and re-ask or re-run the
+missing work.
 
 ```
-Phase 1 — Discovery    →  brief.json    (interview the user)
-Phase 2 — Outline      →  outline.json  (one round, user approves)
-Phase 3 — Batch build  →  plan.json     (3 slides at a time)
+Phase 1 — Discovery    →  brief.json or internal brief  (interview the user)
+Phase 2 — Outline      →  outline.json                  (user approves)
+Phase 3 — Batch build  →  plan.json + preview.pptx      (3 slides at a time)
 Phase 4 — Polish       →  plan.json (validated)
+Phase 5 — Final render →  out.pptx
 ```
 
 JSON Schemas in `schemas/`:
@@ -56,10 +59,12 @@ JSON Schemas in `schemas/`:
 
 ## Phase 1 — Discovery
 
-Conduct a short structured interview. Fill every field of `brief.json`.
-Do not move to Phase 2 with any field blank or vague.
+Conduct a short structured interview. Collect the essential facts up front,
+then decide whether you have enough to outline. If the user explicitly asks you
+to proceed with partial information, proceed with clearly marked assumptions
+and ask the remaining questions during batch build when they matter.
 
-Required fields (see `schemas/brief.schema.json`):
+Brief fields (see `schemas/brief.schema.json`):
 
 | Field | What it captures | Reject if |
 |---|---|---|
@@ -103,9 +108,17 @@ When an answer is vague, name what's missing.
 
 ### Transition gate to Phase 2
 
-Before emitting an outline, verify every brief field is filled and
-non-trivial. If any field is empty or vague: **stop, re-ask, do not
-proceed.**
+Before emitting an outline, verify you have at least:
+
+- `audience` — concrete role/seniority/familiarity
+- `purpose` — the decision or action after viewing
+- `key_message` — one sentence
+- `length_target` — integer slide count
+- at least one concrete claim, data point, or source to anchor the deck
+
+If one of those is missing and the user has not told you to proceed anyway:
+stop and ask. The remaining fields (`tone`, `must_avoid`, assets, supporting
+data) can be gathered during deck creation as long as you do not invent facts.
 
 ---
 
@@ -127,9 +140,12 @@ Output shape per slide:
 Rules:
 
 - Length matches `brief.length_target` exactly. Not "around 10".
-- Every slide picks one of the 13 recipes (or `"free"` — strongly
+- Every slide picks one of the 26 recipes (or `"free"` — strongly
   discouraged at outline stage).
-- Cover slide first (recipe = `title_only`).
+- Decide the opener at outline time. If `opener-template-status.effective` is
+  true and the user accepts the template, set `use_template_opener: true` and
+  start the plan's slide list with the first content slide. Otherwise, compose
+  slide 1 as `title_only` or `title_hero_image`.
 - Closing slide last (recipe = `cta_closing` or `quote`).
 - For decks ≥ 7 slides, include at least one `section_divider`.
 - Avoid three consecutive content-heavy recipes (`title_bullets`,
@@ -165,7 +181,7 @@ to the user. Do not insert.
 For each slide draft, run:
 
 ```bash
-python reader.py validate-slide <slide.json>
+python3 reader.py validate-slide <slide.json>
 ```
 
 This consolidates four checks into one call:
@@ -198,7 +214,7 @@ level** — the type scale is the single source of typographic consistency.
 metadata as input:
 
 ```bash
-python reader.py check-asset-fit --asset '<asset_yaml>' --cell-rect '<rect>'
+python3 reader.py check-asset-fit --asset '<asset_yaml>' --cell-rect '<rect>'
 ```
 
 Run this on every image slot where you've assigned a real `asset_id`.
@@ -210,8 +226,8 @@ different asset.
 **Default workflow — start with the catalog as a single map:**
 
 ```bash
-python reader.py tag-summary      # see what tags + kinds exist
-python reader.py asset-index      # full catalog as {id: {summary}}
+python3 reader.py tag-summary      # see what tags + kinds exist
+python3 reader.py asset-index      # full catalog as {id: {summary}}
 ```
 
 `asset-index` returns the *entire* catalog in one call as a compact
@@ -228,7 +244,7 @@ For every image slot:
    slot-appropriate `kind`, take 3–5 likely picks.
 2. **For pictograms (`previewable: true`), preview before committing.**
    SVGs are tiny text files inside `skill/assets/`. Call
-   `python reader.py preview-asset <id>` for the `abs_path`, then Read
+   `python3 reader.py preview-asset <id>` for the `abs_path`, then Read
    that file — the XML shows the actual shape. Descriptions like
    "thin arrow" vs "bold arrow" are ambiguous and visual fit matters.
 3. **For raster photos (`previewable: false`)**, pick by description
@@ -243,7 +259,7 @@ For every image slot:
 **When to fall back to `find-asset`:**
 
 ```bash
-python reader.py find-asset --kind <k> --tags <t1,t2> --limit 5
+python3 reader.py find-asset --kind <k> --tags <t1,t2> --limit 5
 ```
 
 Use this when you already know the exact `kind`+`tags` you want and
@@ -257,7 +273,7 @@ faster and more flexible than chained `find-asset` queries.
 When you need to disambiguate SVG candidates:
 
 ```bash
-python reader.py preview-asset <asset_id>
+python3 reader.py preview-asset <asset_id>
 ```
 
 - SVG → `{available: true, abs_path: "..."}`. Read the `abs_path` as a
@@ -266,7 +282,8 @@ python reader.py preview-asset <asset_id>
 
 Don't call this for every match — just for SVG ties or ambiguous picks.
 
-Do not scan all assets by reading sidecars one-by-one. Use `find-asset`.
+Do not scan all assets by reading sidecars one-by-one. Use `asset-index` as
+the default map and `find-asset` only for narrow exact kind+tag lookups.
 
 ### When no asset exists — use a speculative `asset_id`
 
@@ -288,8 +305,8 @@ No manual editing of the .pptx required.
 After the deck is rendered, **report the shopping list** to the user:
 
 > "Slide 7 needs `team_photo_q4.jpg`. Slide 12 needs `revenue_chart_2026.png`.
-> Drop them into `assets/` (each with a sidecar — run `describe_assets.py
-> assets/` to generate) and re-run `python render.py plan.json out.pptx`."
+> Drop them into `assets/` (each with a sidecar — run `python3 describe_assets.py
+> assets/` to generate) and re-run `python3 render.py plan.json out.pptx`."
 
 ### Pure placeholders — only for truly optional/decorative
 
@@ -344,7 +361,7 @@ If the user asks "tighten this" or "less corporate", rewrite in
 ### Transition gate to Phase 4
 
 All batches accepted by user. Outline-mandated slide count present.
-No outstanding `errors` from `reader.py validate-plan`.
+No outstanding `errors` from `python3 reader.py validate-plan`.
 
 ---
 
@@ -353,7 +370,7 @@ No outstanding `errors` from `reader.py validate-plan`.
 Whole-deck pass. Run:
 
 ```bash
-python reader.py validate-plan plan.json
+python3 reader.py validate-plan plan.json
 ```
 
 Address every `error`. `warnings` are reviewed with the user (not
@@ -365,10 +382,16 @@ auto-fixed). Specifically:
 - `palette_audit` → remove the off-palette `color_hex` from style_overrides.
 - `chart_sanity` → switch chart type per `suggested_type`.
 
-When `validate-plan` returns `ok: true`, render to a `.pptx`:
+When `validate-plan` returns `ok: true`, move to Phase 5.
+
+---
+
+## Phase 5 — Final render
+
+Render the validated deck to a `.pptx`:
 
 ```bash
-python render.py plan.json out.pptx
+python3 render.py plan.json out.pptx
 ```
 
 This produces the final deck. If sidecar YAMLs exist in the bundled
@@ -376,7 +399,8 @@ This produces the final deck. If sidecar YAMLs exist in the bundled
 automatically. Pass `--assets /path/to/external/` to override the default
 asset source, or `--no-splice` to keep placeholders (rare).
 
-Hand the path to the rendered `.pptx` to the user as your final output.
+Hand the path or download link to the rendered `.pptx` to the user as your
+final output. Also report any speculative asset IDs that still need binaries.
 
 ---
 
@@ -386,9 +410,9 @@ Hand the path to the rendered `.pptx` to the user as your final output.
 component placements on the grid. Inspect signatures via:
 
 ```bash
-python reader.py list-recipes
-python reader.py recipe-signature <name>     # now ships with copy-pasteable example
-python reader.py preview-recipe <name> --content '<json>' [--params '<json>']
+python3 reader.py list-recipes
+python3 reader.py recipe-signature <name>     # ships with copy-pasteable example
+python3 reader.py preview-recipe <name> --content '<json>' [--params '<json>']
 ```
 
 Every `recipe-signature` output carries an `example` field — a minimal
@@ -482,21 +506,6 @@ Example:
  "content": {"number": "02", "label": "Our approach"}}
 ```
 
-### Table styling
-
-Both `table_full` and `table_with_callout` accept a `style` key inside the
-`table` content dict:
-
-| Style | Look | Use when |
-|---|---|---|
-| `header_accent` (default) | Orange header band, plain body | General-purpose data tables |
-| `zebra_neutral` | No header band, alternating light-grey body rows | Long tables where scanning rows matters |
-| `filled_accent` | Every cell orange + white text | Short emphatic tables (2-4 rows, hero data) |
-| `filled_neutral` | Every cell light grey | Reference / specifications-style tables |
-| `minimal` | No fills, font weight only | Clean editorial look |
-
----
-
 ## Component catalog
 
 These are what recipes emit (and what `"free"` slides list directly).
@@ -539,7 +548,7 @@ strips above/below the content grid (page numbers, logo).
 ## Theme essentials (corporate, single MVP theme)
 
 Source of truth: `theme.yaml`. The agent doesn't write hexes — it uses
-`color_key` references that resolve at render time. Use `python reader.py
+`color_key` references that resolve at render time. Use `python3 reader.py
 theme` to load the full file.
 
 ### Palette (use by `color_key` reference)
@@ -567,13 +576,18 @@ theme` to load the full file.
 
 | Level | Size | Weight | Use |
 |---|---|---|---|
-| `section_number` | 240pt | regular | Only `section_divider`'s numeral |
-| `h1` | 36pt | bold | Slide title |
-| `h2` | 24pt | bold | Subhead / column label |
+| `section_number` | 350pt | regular, Arial | Only `section_divider`'s numeral |
+| `mega_metric` | 200pt | regular, Arial | `single_metric` with `size: mega` |
+| `hero_metric` | 150pt | regular, Arial | `single_metric` default |
+| `numbered_item` | 115pt | regular, Arial | `numbered_list_6up` numerals |
+| `statement` | 66pt | regular, Georgia | `big_statement` text |
+| `sub_metric` | 66pt | regular, Arial | `single_metric.sub_value` |
+| `h1` | 48pt | regular, Georgia | Slide title |
+| `h2` | 28pt | bold | Subhead / column label |
 | `h3` | 18pt | bold | Subhead 2 |
-| `body` | 14pt | regular | Body text & bullets |
+| `body` | 15pt | regular | Body text & bullets |
 | `caption` | 11pt | regular | Footnote / muted line |
-| `metric_value` | 48pt | bold | Big KPI number |
+| `metric_value` | 48pt | regular | Big KPI number |
 | `metric_label` | 12pt | regular | KPI caption |
 | `quote` | 28pt | italic | Pull-quote |
 
@@ -587,42 +601,42 @@ Every check is one CLI call. Inputs accept inline JSON or `@path/to/file.json`.
 
 ```bash
 # Grid math (rarely needed directly — recipes handle this)
-python reader.py cell-to-rect --row 5 --col 3 --row-span 4 --col-span 6
+python3 reader.py cell-to-rect --row 5 --col 3 --row-span 4 --col-span 6
 
 # Text fit
-python reader.py measure-text "Q4 results beat consensus by a wide margin" \
+python3 reader.py measure-text "Q4 results beat consensus by a wide margin" \
   --type-level h1 \
   --cell-rect '{"x":0.038,"y":0.071,"w":0.923,"h":0.143}'
 
 # Asset fit
-python reader.py check-asset-fit \
+python3 reader.py check-asset-fit \
   --asset '{"width":1920,"height":1280,"aspect":1.5}' \
   --cell-rect '{"x":0.5,"y":0.2,"w":0.45,"h":0.7}'
 
 # Color contrast (WCAG)
-python reader.py contrast-check '#000000' '#EBEBEB'
+python3 reader.py contrast-check '#000000' '#EBEBEB'
 
 # Slide-level critics
-python reader.py grid-audit --components '@placements.json'
-python reader.py palette-audit --components '@placements.json'
-python reader.py visual-balance --components '@placements.json'
+python3 reader.py grid-audit --components '@placements.json'
+python3 reader.py palette-audit --components '@placements.json'
+python3 reader.py visual-balance --components '@placements.json'
 
 # Deck-level critics
-python reader.py deck-flow plan.json
-python reader.py chart-sanity --content '{"type":"pie","categories":[…],"series":[…]}'
+python3 reader.py deck-flow plan.json
+python3 reader.py chart-sanity --content '{"type":"pie","categories":[…],"series":[…]}'
 
 # Asset discovery
-python reader.py asset-index                   # ← default: full catalog as {id: {summary}}
-python reader.py tag-summary                   # ← vocabulary: which kinds + tags exist (counts)
-python reader.py read-assets [<asset_dir>]     # full yamls (heavy; rarely needed)
-python reader.py find-asset --kind photo --tags people,office --limit 5
-python reader.py preview-asset <asset_id>     # SVG → abs_path; raster → not available
+python3 reader.py asset-index                  # default: full catalog as {id: {summary}}
+python3 reader.py tag-summary                  # vocabulary: which kinds + tags exist (counts)
+python3 reader.py read-assets [<asset_dir>]    # full yamls (heavy; rarely needed)
+python3 reader.py find-asset --kind photo --tags people,office --limit 5
+python3 reader.py preview-asset <asset_id>     # SVG -> abs_path; raster -> not available
 
 # Template opener (Phase 2 outline step)
-python reader.py opener-template-status        # returns {enabled, exists, effective}
+python3 reader.py opener-template-status       # returns {enabled, exists, effective}
 
 # Full validation
-python reader.py validate-plan plan.json
+python3 reader.py validate-plan plan.json
 ```
 
 `validate-plan` is the **only** off-ramp from Phase 4. As long as it
@@ -650,8 +664,9 @@ skill/assets/                       ← bundled with the skill
 `describe_assets.py` routes by file extension at ingest time — SVGs are
 moved into `skill/assets/`, raster binaries stay in the external folder
 with only their yaml landing in `skill/assets/`. You never deal with the
-two-folder split directly: query `find-asset`, get matches with
-everything you need, reference asset_ids in plans.
+two-folder split directly: query `asset-index` once, filter locally, and
+reference asset_ids in plans. Use `find-asset` only for narrow exact
+kind+tag lookups.
 
 Each yaml carries:
 
@@ -668,8 +683,9 @@ Each yaml carries:
 You discover assets via:
 
 ```bash
-python reader.py find-asset --kind photo --tags people,office
-python reader.py preview-asset <asset_id>     # only for SVG disambiguation
+python3 reader.py tag-summary
+python3 reader.py asset-index
+python3 reader.py preview-asset <asset_id>     # only for SVG disambiguation
 ```
 
 You never read sidecar files by hand.
@@ -702,7 +718,7 @@ Top-level fields:
   When `true`, your `slides` list starts at the first **content** slide
   (no cover). When `false` (or omitted with no template configured),
   slide id=1 is an agent-composed cover. Run
-  `python reader.py opener-template-status` to know which is appropriate;
+  `python3 reader.py opener-template-status` to know which is appropriate;
   ask the user in Phase 2 if a template is available.
 - `slides` — ordered list of slide specs.
 
@@ -710,7 +726,7 @@ Top-level fields:
 {
   "version": "1",
   "deck_title": "Q4 results",
-  "use_template_opener": true,
+  "use_template_opener": false,
   "slides": [
     {
       "id": 1,
@@ -745,10 +761,12 @@ Top-level fields:
 - Adding slides not in the approved outline (raise to user; don't insert).
 - Estimating text fit by eye (always `measure-text`).
 - Picking colors by hex literal (always `color_key`).
-- Picking assets by walking the directory (always `find-asset`).
+- Picking assets by walking the directory. Use `asset-index` first; use
+  `find-asset` only for exact kind+tag lookups.
 - Restating the brief or outline in your own words at every turn — reference by ID.
 - Closing the build with errors from `validate-plan` outstanding.
-- Running `render.py` or `splice_assets.py` yourself — those are the user's step.
+- Running `splice_assets.py` manually unless re-splicing against a different
+  asset folder. `render.py` is part of your normal preview and final workflow.
 - Writing summaries of what you just did.
 
 ---
@@ -764,7 +782,6 @@ Confirmation line, one sentence, or nothing. Examples:
 > Batch 2 of 4 ready (slides 4-6). 1 warning: slide 5 hero image has
 > 0.08 aspect delta — accept or pick another?
 
-> validate-plan: ok=true, 0 errors, 1 warning (palette). Final plan:
-> `plan.json`. User runs render + splice next.
+> validate-plan: ok=true. Rendering final deck.
 
 That's it. Nothing else.

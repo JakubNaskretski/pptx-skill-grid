@@ -3,7 +3,8 @@
 Matches the source deck's slides 1-2 layout where a branded table sits in
 the right portion of the slide with a heading + supporting bullets on the
 left. Pass table['style'] to pick a branded look:
-filled_accent | filled_neutral | header_accent | zebra_neutral | minimal.
+filled_accent | filled_neutral | header_accent | zebra_neutral | minimal |
+underline_accent | underline_neutral.
 """
 
 from __future__ import annotations

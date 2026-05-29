@@ -207,7 +207,7 @@ RECIPE_SIGNATURES = {
             "table": "{rows, cols, has_header, data: [[...]], style?}",
         },
         "params": {},
-        "use_when": "Title + full-width table. table.style: header_accent (default) | zebra_neutral | filled_accent | filled_neutral | minimal.",
+        "use_when": "Title + full-width table. table.style: header_accent (default) | zebra_neutral | filled_accent | filled_neutral | minimal | underline_accent | underline_neutral.",
         "example": {
             "content": {
                 "title": "Coverage by region",

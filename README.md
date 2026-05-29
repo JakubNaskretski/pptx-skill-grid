@@ -70,15 +70,14 @@ You / your data           ┐
    theme.yaml             │  (extracted from brand template once)
    pptx_extracted_private │  binaries — outside repo
                           │
-The agent ─────────────────▶ plan.json
+The agent ─────────────────▶ plan.json + final.pptx
    reads SKILL.md         │
    picks recipes          │
-   calls reader.py        │  (validate-slide / find-asset / measure-text)
-   emits structured JSON  │
+   calls reader.py        │  (validate-slide / asset-index / measure-text)
+   calls render.py        │  (preview + final .pptx)
                           │
-You / render scripts ─────▶ final.pptx
-   render.py              │  plan + theme → .pptx with placeholders
-   splice_assets.py       │  swaps placeholders for binaries
+render.py                 │  plan + theme → .pptx with placeholders
+splice_assets.py          │  auto-called by render; manual re-splice only
 ```
 
 The agent never accesses the brand template or the asset binaries directly.
@@ -94,22 +93,22 @@ flow is:
 cd skill
 
 # 1) Drop image binaries into assets/. Generate sidecars:
-python describe_assets.py assets/
+python3 describe_assets.py assets/
 
-# 2) Agent reads the sidecars (descriptions, tags, dims) and writes
-#    plan.json with asset_id refs in image components
+# 2) Agent queries asset-index/tag-summary and writes plan.json with
+#    asset_id refs in image components
 
 # 3) Render — auto-splices binaries from assets/ if sidecars exist;
 #    leaves placeholders otherwise.
-python render.py plan.json out.pptx
+python3 render.py plan.json out.pptx
 
 # (Optional) re-splice an existing pptx against a different asset folder
-python splice_assets.py out.pptx --assets /external/path -o final.pptx
+python3 splice_assets.py out.pptx --assets /external/path -o final.pptx
 ```
 
 If you don't have all the binaries when the agent is composing, the
 agent uses **speculative asset_ids** like `team_photo_q4`. Drop matching
-binaries into `assets/` later and re-run `python render.py` — same plan
+binaries into `assets/` later and re-run `python3 render.py` — same plan
 re-renders with the new assets filled in.
 
 ## Repo layout — two clear halves
@@ -155,25 +154,27 @@ cd skill
 pip install -r requirements.txt
 
 # 25-slide narrative showcase exercising most of the surface
-python render.py examples/example_showcase.json examples/out_showcase.pptx
+python3 render.py examples/example_showcase.json examples/out_showcase.pptx
 open examples/out_showcase.pptx
 ```
 
 ## Workflow for the agent
 
-The full contract lives in `SKILL.md`. Four phases:
+The full contract lives in `SKILL.md`. Five phases:
 
 1. **Discovery** — agent runs a structured interview, fills `brief.json`.
 2. **Outline** — slide-by-slide TOC with recipe + summary per slide.
-3. **Batch build** — 3 slides at a time. After each: `python reader.py
+3. **Batch build** — 3 slides at a time. After each: `python3 reader.py
    validate-slide slide.json` returns `{errors, warnings}` from grid_audit
    + measure_text per text component + chart_sanity + palette_audit.
    Tiered severity catches overflow before render.
-4. **Polish** — whole-deck `validate-plan`, address any deck_flow warnings,
-   emit final `plan.json`.
+4. **Polish** — whole-deck `validate-plan`, address any deck_flow warnings.
+5. **Final render** — agent runs `python3 render.py plan.json out.pptx` and
+   returns the rendered `.pptx` path or download link.
 
-The agent stops at `plan.json`. You run `render.py` and `splice_assets.py`
-yourself.
+The agent renders previews during batch creation and renders the final deck.
+Manual `splice_assets.py` is only needed when re-splicing an existing deck
+against a different asset folder.
 
 ## Setting up the agent
 
